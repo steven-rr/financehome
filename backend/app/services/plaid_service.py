@@ -16,7 +16,7 @@ from app.utils.encryption import encrypt_token
 
 PLAID_ENV_MAP = {
     "sandbox": plaid.Environment.Sandbox,
-    "development": plaid.Environment.Development,
+    "development": plaid.Environment.Sandbox,
     "production": plaid.Environment.Production,
 }
 
