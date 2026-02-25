@@ -98,13 +98,14 @@ export default function Analytics() {
                   outerRadius={140}
                   paddingAngle={2}
                   dataKey="value"
-                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  label={({ name, percent }: any) => `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`}
                 >
                   {pieData.map((_, index) => (
                     <Cell key={index} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -117,7 +118,7 @@ export default function Analytics() {
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" tickFormatter={(v) => `$${v}`} />
                 <YAxis type="category" dataKey="category" width={120} tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                 <Legend />
                 <Bar dataKey="amount" fill="#10b981" radius={[0, 4, 4, 0]} name="Spending" />
               </BarChart>
