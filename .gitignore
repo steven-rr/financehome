@@ -26,3 +26,6 @@ Thumbs.db
 
 # Alembic
 alembic/versions/*.pyc
+
+# Firebase
+.firebase/

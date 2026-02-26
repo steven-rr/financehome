@@ -14,13 +14,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
-app.include_router(plaid.router, prefix="/plaid", tags=["plaid"])
-app.include_router(accounts.router, prefix="/accounts", tags=["accounts"])
-app.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
-app.include_router(insights.router, prefix="/insights", tags=["insights"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(plaid.router, prefix="/api/plaid", tags=["plaid"])
+app.include_router(accounts.router, prefix="/api/accounts", tags=["accounts"])
+app.include_router(transactions.router, prefix="/api/transactions", tags=["transactions"])
+app.include_router(insights.router, prefix="/api/insights", tags=["insights"])
 
 
-@app.get("/health")
+@app.get("/api/health")
 async def health_check():
     return {"status": "ok"}

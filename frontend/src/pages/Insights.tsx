@@ -21,8 +21,9 @@ const INSIGHT_TYPES = [
   { key: 'forecast', label: 'Cash Flow Forecast', icon: TrendingUp },
 ]
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function InsightCard({ insight }: { insight: Insight }) {
-  const content = insight.content
+  const content = insight.content as Record<string, any>
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-6">
