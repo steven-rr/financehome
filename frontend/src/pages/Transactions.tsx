@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { format, startOfMonth, subMonths } from 'date-fns'
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Search } from 'lucide-react'
 import { useState } from 'react'
 import { accountsApi } from '../api/accounts'
+import { exportApi } from '../api/export'
 import { transactionsApi } from '../api/transactions'
 import type { Account, TransactionFilters } from '../types'
 
@@ -35,7 +36,16 @@ export default function Transactions() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Transactions</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Transactions</h1>
+        <button
+          onClick={() => exportApi.downloadTransactions(filters.start_date, filters.end_date)}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          Download CSV
+        </button>
+      </div>
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
