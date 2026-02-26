@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.account import Account
@@ -35,7 +36,10 @@ async def list_accounts(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Account).where(Account.user_id == current_user.id).order_by(Account.name)
+        select(Account)
+        .options(selectinload(Account.plaid_link))
+        .where(Account.user_id == current_user.id)
+        .order_by(Account.name)
     )
     accounts = result.scalars().all()
 
