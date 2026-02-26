@@ -17,6 +17,11 @@ export const authApi = {
     return data
   },
 
+  demoLogin: async (): Promise<TokenResponse> => {
+    const { data } = await client.post('/auth/demo')
+    return data
+  },
+
   getMe: async () => {
     const { data } = await client.get('/auth/me')
     return data

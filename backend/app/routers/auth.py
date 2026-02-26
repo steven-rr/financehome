@@ -111,6 +111,16 @@ async def refresh(request: RefreshRequest, db: AsyncSession = Depends(get_db)):
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
+@router.post("/demo", response_model=TokenResponse)
+async def demo_login(db: AsyncSession = Depends(get_db)):
+    from app.services.demo_seed import seed_demo_data
+
+    user = await seed_demo_data(db)
+    access_token = create_access_token({"sub": str(user.id)})
+    refresh_token = create_refresh_token({"sub": str(user.id)})
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+
+
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user

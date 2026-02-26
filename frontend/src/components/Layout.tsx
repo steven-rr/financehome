@@ -19,7 +19,7 @@ const navItems = [
 ]
 
 export default function Layout() {
-  const { logout } = useAuth()
+  const { logout, isDemo } = useAuth()
 
   return (
     <div className="flex h-screen bg-slate-50">
@@ -64,8 +64,21 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto p-8">
-        <Outlet />
+      <main className="flex-1 overflow-auto">
+        {isDemo && (
+          <div className="bg-amber-50 border-b border-amber-200 px-8 py-2 flex items-center justify-between">
+            <p className="text-sm text-amber-800">
+              <strong>Demo Mode</strong> — You are viewing sample data.{' '}
+              <button onClick={logout} className="underline">
+                Sign up
+              </button>{' '}
+              to connect your own bank.
+            </p>
+          </div>
+        )}
+        <div className="p-8">
+          <Outlet />
+        </div>
       </main>
     </div>
   )

@@ -1,4 +1,4 @@
-import { CreditCard } from 'lucide-react'
+import { CreditCard, Play } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -9,7 +9,8 @@ export default function Login() {
   const [isRegister, setIsRegister] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { login, register } = useAuth()
+  const [demoLoading, setDemoLoading] = useState(false)
+  const { login, register, demoLogin } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,6 +29,20 @@ export default function Login() {
       setError(message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDemoLogin = async () => {
+    setError('')
+    setDemoLoading(true)
+    try {
+      await demoLogin()
+      navigate('/')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Something went wrong'
+      setError(message)
+    } finally {
+      setDemoLoading(false)
     }
   }
 
@@ -100,6 +115,27 @@ export default function Login() {
             >
               {isRegister ? 'Sign In' : 'Create one'}
             </button>
+          </p>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-slate-400">or</span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleDemoLogin}
+            disabled={demoLoading}
+            className="w-full py-2.5 border-2 border-emerald-600 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <Play className="w-4 h-4" />
+            {demoLoading ? 'Setting up demo...' : 'Try Demo — No Sign Up Required'}
+          </button>
+          <p className="mt-2 text-center text-xs text-slate-400">
+            Explore with sample data from a fictional budget
           </p>
         </div>
       </div>
