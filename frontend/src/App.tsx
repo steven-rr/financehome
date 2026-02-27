@@ -6,6 +6,7 @@ import Analytics from './pages/Analytics'
 import Dashboard from './pages/Dashboard'
 import Insights from './pages/Insights'
 import Login from './pages/Login'
+import OAuthCallback from './pages/OAuthCallback'
 import Transactions from './pages/Transactions'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -18,6 +19,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/oauth-callback" element={<ProtectedRoute><OAuthCallback /></ProtectedRoute>} />
       <Route
         path="/"
         element={

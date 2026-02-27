@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, startOfMonth, subMonths } from 'date-fns'
-import { ChevronLeft, ChevronRight, Download, Search } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronLeft, ChevronRight, Download, Search, Upload } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { accountsApi } from '../api/accounts'
+import { csvImportApi } from '../api/csvImport'
 import { exportApi } from '../api/export'
 import { transactionsApi } from '../api/transactions'
 import type { Account, TransactionFilters } from '../types'
@@ -19,6 +20,25 @@ export default function Transactions() {
     per_page: 50,
   })
   const [searchInput, setSearchInput] = useState('')
+  const [importStatus, setImportStatus] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const queryClient = useQueryClient()
+
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportStatus('Importing...')
+    try {
+      const result = await csvImportApi.importTransactions(file)
+      setImportStatus(`Imported ${result.imported}, skipped ${result.skipped} duplicates`)
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+    } catch {
+      setImportStatus('Import failed — check CSV format')
+    }
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    setTimeout(() => setImportStatus(null), 5000)
+  }
 
   const { data: accounts = [] } = useQuery<Account[]>({
     queryKey: ['accounts'],
@@ -38,13 +58,32 @@ export default function Transactions() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Transactions</h1>
-        <button
-          onClick={() => exportApi.downloadTransactions(filters.start_date, filters.end_date)}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          Download CSV
-        </button>
+        <div className="flex items-center gap-3">
+          {importStatus && (
+            <span className="text-sm text-slate-600">{importStatus}</span>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleFileImport}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Import CSV
+          </button>
+          <button
+            onClick={() => exportApi.downloadTransactions(filters.start_date, filters.end_date)}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Download CSV
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

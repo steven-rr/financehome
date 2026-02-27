@@ -41,6 +41,8 @@ class PlaidService:
             country_codes=[CountryCode("US")],
             language="en",
         )
+        if settings.frontend_url.startswith("https"):
+            request.redirect_uri = f"{settings.frontend_url}/oauth-callback"
         if settings.plaid_webhook_url:
             request.webhook = settings.plaid_webhook_url
 

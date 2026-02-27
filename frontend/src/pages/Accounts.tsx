@@ -15,12 +15,16 @@ function PlaidLinkButton() {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    plaidApi.createLinkToken().then(setLinkToken)
+    plaidApi.createLinkToken().then((token) => {
+      setLinkToken(token)
+      localStorage.setItem('plaid_link_token', token)
+    })
   }, [])
 
   const onSuccess = useCallback(
     async (publicToken: string) => {
       await plaidApi.exchangeToken(publicToken)
+      localStorage.removeItem('plaid_link_token')
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
     },
     [queryClient],
