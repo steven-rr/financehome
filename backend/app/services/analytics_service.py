@@ -1,11 +1,30 @@
 import uuid
 from datetime import date
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
 from app.models.transaction import Transaction
+
+
+# Categories that are never real spending (just moving money between accounts)
+TRANSFER_CATEGORIES = {
+    "LOAN_DISBURSEMENTS", "TRANSFER_IN",
+    "Payment", "Credit", "Pago/crédito",
+}
+
+# Descriptions that indicate credit card payments (double-counted from checking)
+CREDIT_CARD_PAYMENT_PATTERNS = [
+    "APPLECARD", "APPLE CARD", "CHASE CREDIT CRD", "CAPITAL ONE DES:",
+]
+
+
+def _is_cc_payment():
+    """SQLAlchemy filter that matches credit card payment descriptions."""
+    return or_(
+        *[Transaction.description.ilike(f"%{p}%") for p in CREDIT_CARD_PAYMENT_PATTERNS]
+    )
 
 
 class AnalyticsService:
@@ -28,6 +47,8 @@ class AnalyticsService:
                 Transaction.date >= start_date,
                 Transaction.date <= end_date,
                 Transaction.amount > 0,
+                Transaction.category.notin_(TRANSFER_CATEGORIES),
+                ~_is_cc_payment(),
             )
             .group_by(Transaction.category)
             .order_by(func.sum(Transaction.amount).desc())
@@ -61,6 +82,8 @@ class AnalyticsService:
                 Account.user_id == user_id,
                 Transaction.date >= start_date,
                 Transaction.date <= end_date,
+                Transaction.category.notin_(TRANSFER_CATEGORIES),
+                ~_is_cc_payment(),
             )
         )
         amounts = [row[0] for row in all_txns.all()]

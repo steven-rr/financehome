@@ -107,6 +107,8 @@ async def get_category_summary(
     start_date: date | None = Query(None),
     end_date: date | None = Query(None),
 ):
+    from app.services.analytics_service import TRANSFER_CATEGORIES, _is_cc_payment
+
     query = (
         select(
             Transaction.category,
@@ -116,6 +118,8 @@ async def get_category_summary(
         .join(Account, Transaction.account_id == Account.id)
         .where(Account.user_id == current_user.id)
         .where(Transaction.amount > 0)  # Expenses only (Plaid: positive = money out)
+        .where(Transaction.category.notin_(TRANSFER_CATEGORIES))
+        .where(~_is_cc_payment())
         .group_by(Transaction.category)
         .order_by(func.sum(Transaction.amount).desc())
     )
