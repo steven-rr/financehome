@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -64,6 +64,13 @@ class ExpenseTransaction(BaseModel):
     merchant_name: str | None
     amount: float
     category: str
+
+
+class MonthlyTrend(BaseModel):
+    month: str  # "2025-01"
+    income: float
+    expenses: float
+    net: float
 
 
 def _base_query(user_id: uuid.UUID) -> Select:
@@ -297,4 +304,55 @@ async def get_category_summary(
         [CategorySummary(category=k, total=round(v["total"], 2), count=v["count"]) for k, v in merged.items()],
         key=lambda x: x.total,
         reverse=True,
+    )
+
+
+@router.get("/monthly-trend", response_model=list[MonthlyTrend])
+async def get_monthly_trend(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    months: int = Query(6, ge=1, le=24),
+):
+    from app.services.analytics_service import TRANSFER_CATEGORIES, _is_cc_payment
+
+    effective_category = func.coalesce(Transaction.category, Transaction.ai_category)
+    cutoff = date.today().replace(day=1) - timedelta(days=(months - 1) * 31)
+    cutoff = cutoff.replace(day=1)
+
+    result = await db.execute(
+        select(Transaction.date, Transaction.amount)
+        .join(Account, Transaction.account_id == Account.id)
+        .where(
+            Account.user_id == current_user.id,
+            Transaction.date >= cutoff,
+            or_(
+                effective_category.is_(None),
+                effective_category.notin_(TRANSFER_CATEGORIES),
+            ),
+            ~_is_cc_payment(),
+        )
+    )
+
+    # Bucket by month
+    buckets: dict[str, dict] = {}
+    for row in result.all():
+        month_key = row.date.strftime("%Y-%m")
+        if month_key not in buckets:
+            buckets[month_key] = {"income": 0.0, "expenses": 0.0}
+        if row.amount > 0:
+            buckets[month_key]["expenses"] += row.amount
+        else:
+            buckets[month_key]["income"] += abs(row.amount)
+
+    return sorted(
+        [
+            MonthlyTrend(
+                month=k,
+                income=round(v["income"], 2),
+                expenses=round(v["expenses"], 2),
+                net=round(v["income"] - v["expenses"], 2),
+            )
+            for k, v in buckets.items()
+        ],
+        key=lambda x: x.month,
     )

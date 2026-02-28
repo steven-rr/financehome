@@ -2,10 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { format, startOfMonth } from 'date-fns'
 import { ArrowDownRight, ArrowUpRight, ChevronDown, ChevronRight, DollarSign, Repeat, TrendingUp, Wallet } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { accountsApi } from '../api/accounts'
 import { recurringApi } from '../api/recurring'
 import { transactionsApi } from '../api/transactions'
-import type { Account, RecurringItem, RecurringSummary, Transaction } from '../types'
+import type { Account, MonthlyTrend, RecurringItem, RecurringSummary, Transaction } from '../types'
 
 function StatCard({
   title,
@@ -30,6 +31,11 @@ function StatCard({
     </div>
   )
 }
+
+const CHART_COLORS = [
+  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
+]
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-US', {
@@ -60,6 +66,11 @@ export default function Dashboard() {
   const { data: recurring } = useQuery<RecurringSummary>({
     queryKey: ['recurring'],
     queryFn: recurringApi.getSummary,
+  })
+
+  const { data: monthlyTrend = [] } = useQuery<MonthlyTrend[]>({
+    queryKey: ['monthly-trend'],
+    queryFn: () => transactionsApi.monthlyTrend(6),
   })
 
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
@@ -135,6 +146,91 @@ export default function Dashboard() {
           icon={DollarSign}
           color="bg-amber-500"
         />
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Spending by Category */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Spending by Category</h2>
+          {categories.length === 0 ? (
+            <p className="text-slate-500 text-sm">No spending data this month.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart>
+                <Pie
+                  data={categories}
+                  dataKey="total"
+                  nameKey="category"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={2}
+                >
+                  {categories.map((_, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number) => formatCurrency(value)}
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                />
+                <Legend
+                  layout="horizontal"
+                  verticalAlign="bottom"
+                  wrapperStyle={{ fontSize: '12px' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Monthly Trend */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Monthly Trend</h2>
+          {monthlyTrend.length === 0 ? (
+            <p className="text-slate-500 text-sm">Not enough data to show trends yet.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={monthlyTrend}>
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => `$${(v / 1000).toFixed(1)}k`}
+                />
+                <Tooltip
+                  formatter={(value: number) => formatCurrency(value)}
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="income"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  dot={{ r: 4, fill: '#10b981' }}
+                  name="Income"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="expenses"
+                  stroke="#ef4444"
+                  strokeWidth={2}
+                  dot={{ r: 4, fill: '#ef4444' }}
+                  name="Expenses"
+                />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
       </div>
 
       {/* Accounts & Recent Transactions */}

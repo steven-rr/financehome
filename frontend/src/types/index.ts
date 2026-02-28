@@ -78,6 +78,13 @@ export interface Insight {
   generated_at: string
 }
 
+export interface MonthlyTrend {
+  month: string
+  income: number
+  expenses: number
+  net: number
+}
+
 export interface RecurringItem {
   merchant: string
   amount: number
