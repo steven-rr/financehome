@@ -44,6 +44,11 @@ export default function Analytics() {
     queryFn: () => transactionsApi.incomeExpenses(startDate, endDate),
   })
 
+  const { data: incomeTransactions = [] } = useQuery({
+    queryKey: ['income-transactions', startDate, endDate],
+    queryFn: () => transactionsApi.incomeTransactions(startDate, endDate),
+  })
+
   const totalSpending = categories.reduce((sum, c) => sum + c.total, 0)
 
   const pieData = categories.slice(0, 8).map((c) => ({
@@ -227,6 +232,35 @@ export default function Analytics() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Income Sources Table */}
+      {incomeTransactions.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mt-6">
+          <div className="px-6 py-4 border-b border-slate-200">
+            <h2 className="text-lg font-semibold text-slate-900">Income Sources</h2>
+          </div>
+          <table className="w-full">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Date</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Source</th>
+                <th className="text-right px-6 py-3 text-xs font-medium text-slate-500 uppercase">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {incomeTransactions.map((t, i) => (
+                <tr key={i} className="hover:bg-slate-50">
+                  <td className="px-6 py-3 text-sm text-slate-500">{t.date}</td>
+                  <td className="px-6 py-3 text-sm">{t.merchant_name || t.description}</td>
+                  <td className="px-6 py-3 text-sm text-right font-medium text-emerald-600">
+                    {formatCurrency(t.amount)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
