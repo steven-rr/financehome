@@ -3,6 +3,7 @@ import json
 import uuid
 from datetime import date
 
+import anthropic
 from google import genai
 from google.genai import types
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,13 +13,47 @@ from app.models.insight import InsightCache
 from app.services.analytics_service import AnalyticsService
 
 
-class ClaudeService:
-    """Financial insights service powered by Gemini 2.5 Flash (free tier)."""
+class InsightsService:
+    """Financial insights service supporting Gemini (free) and Claude (paid)."""
 
     def __init__(self):
-        self.client = genai.Client(api_key=settings.gemini_api_key)
+        self.gemini_client = genai.Client(api_key=settings.gemini_api_key)
         self.analytics = AnalyticsService()
-        self.model = "gemini-2.5-flash"
+
+        self.anthropic_client = None
+        if settings.anthropic_api_key:
+            self.anthropic_client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+
+    async def _call_gemini(self, prompt: str, temperature: float = 0.3, json_mode: bool = False) -> str:
+        config = types.GenerateContentConfig(temperature=temperature)
+        if json_mode:
+            config.response_mime_type = "application/json"
+        response = await asyncio.to_thread(
+            self.gemini_client.models.generate_content,
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=config,
+        )
+        return response.text
+
+    async def _call_anthropic(self, prompt: str, temperature: float = 0.3, json_mode: bool = False) -> str:
+        system_msg = "You are a personal finance analyst for FinanceHome."
+        if json_mode:
+            system_msg += " You MUST respond with ONLY valid JSON. No markdown fencing, no explanation, just the JSON object."
+        response = await self.anthropic_client.messages.create(
+            model="claude-sonnet-4-5-20250514",
+            max_tokens=4096,
+            temperature=temperature,
+            system=system_msg,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = response.content[0].text.strip()
+        # Strip markdown fences if present
+        if json_mode and text.startswith("```"):
+            text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+            if text.endswith("```"):
+                text = text[:-3].strip()
+        return text
 
     async def generate_insight(
         self,
@@ -27,6 +62,7 @@ class ClaudeService:
         start_date: date,
         end_date: date,
         db: AsyncSession,
+        provider: str = "gemini",
     ) -> InsightCache:
         transactions = await self.analytics.get_transactions_for_period(user_id, start_date, end_date, db)
         spending = await self.analytics.get_spending_by_category(user_id, start_date, end_date, db)
@@ -41,17 +77,12 @@ class ClaudeService:
         }
 
         prompt = self._build_prompt(insight_type, context)
-        response = await asyncio.to_thread(
-            self.client.models.generate_content,
-            model=self.model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.3,
-            ),
-        )
 
-        content_text = response.text
+        if provider == "anthropic" and self.anthropic_client:
+            content_text = await self._call_anthropic(prompt, temperature=0.3, json_mode=True)
+        else:
+            content_text = await self._call_gemini(prompt, temperature=0.3, json_mode=True)
+
         try:
             parsed_content = json.loads(content_text)
         except json.JSONDecodeError:
@@ -77,6 +108,7 @@ class ClaudeService:
         start_date: date | None,
         end_date: date | None,
         db: AsyncSession,
+        provider: str = "gemini",
     ) -> str:
         if not start_date:
             start_date = date.today().replace(day=1)
@@ -106,16 +138,10 @@ User's Question: {question}
 
 Provide a clear, helpful answer. Use specific numbers from the data. Be concise."""
 
-        response = await asyncio.to_thread(
-            self.client.models.generate_content,
-            model=self.model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.3,
-            ),
-        )
-
-        return response.text
+        if provider == "anthropic" and self.anthropic_client:
+            return await self._call_anthropic(prompt, temperature=0.3)
+        else:
+            return await self._call_gemini(prompt, temperature=0.3)
 
     def _build_prompt(self, insight_type: str, context: dict) -> str:
         base_context = f"""Analyze the following financial data for the period {context['period']}.
@@ -156,3 +182,7 @@ Provide actionable financial recommendations. Return valid JSON with this struct
         }
 
         return prompts.get(insight_type, prompts["spending_summary"])
+
+
+# Backward compatibility alias
+ClaudeService = InsightsService

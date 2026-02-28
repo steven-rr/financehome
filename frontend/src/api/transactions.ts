@@ -52,8 +52,8 @@ export const transactionsApi = {
     return data
   },
 
-  categorize: async (): Promise<{ categorized: number; total_uncategorized: number }> => {
-    const { data } = await client.post('/categorize/run')
+  categorize: async (provider: string = 'gemini'): Promise<{ categorized: number; total_uncategorized: number }> => {
+    const { data } = await client.post('/categorize/run', { provider })
     return data
   },
 }

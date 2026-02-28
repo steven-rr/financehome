@@ -6,7 +6,9 @@ import { accountsApi } from '../api/accounts'
 import { csvImportApi } from '../api/csvImport'
 import { exportApi } from '../api/export'
 import { transactionsApi } from '../api/transactions'
+import AIProviderToggle from '../components/AIProviderToggle'
 import ImportModal, { type AccountMappings } from '../components/ImportModal'
+import { useAIProvider } from '../hooks/useAIProvider'
 import type { Account, TransactionFilters } from '../types'
 
 function formatCurrency(amount: number) {
@@ -23,6 +25,7 @@ export default function Transactions() {
   const [searchInput, setSearchInput] = useState('')
   const [importStatus, setImportStatus] = useState<string | null>(null)
   const [isCategorizing, setIsCategorizing] = useState(false)
+  const { provider, setProvider } = useAIProvider()
   const [isDragging, setIsDragging] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -70,7 +73,7 @@ export default function Transactions() {
     setIsCategorizing(true)
     setImportStatus('Categorizing transactions with AI...')
     try {
-      const result = await transactionsApi.categorize()
+      const result = await transactionsApi.categorize(provider)
       if (result.categorized === 0) {
         setImportStatus('No uncategorized transactions found')
       } else {
@@ -181,6 +184,7 @@ export default function Transactions() {
             onChange={handleFileImport}
             className="hidden"
           />
+          <AIProviderToggle provider={provider} onChange={setProvider} />
           <button
             onClick={handleCategorize}
             disabled={isCategorizing}

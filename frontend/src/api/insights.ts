@@ -6,11 +6,13 @@ export const insightsApi = {
     insightType: string,
     startDate: string,
     endDate: string,
+    provider: string = 'gemini',
   ): Promise<Insight> => {
     const { data } = await client.post('/insights/generate', {
       insight_type: insightType,
       start_date: startDate,
       end_date: endDate,
+      provider,
     })
     return data
   },
@@ -25,11 +27,13 @@ export const insightsApi = {
     question: string,
     startDate?: string,
     endDate?: string,
+    provider: string = 'gemini',
   ): Promise<{ answer: string }> => {
     const { data } = await client.post('/insights/ask', {
       question,
       start_date: startDate,
       end_date: endDate,
+      provider,
     })
     return data
   },

@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { insightsApi } from '../api/insights'
+import AIProviderToggle from '../components/AIProviderToggle'
+import { useAIProvider } from '../hooks/useAIProvider'
 import type { Insight } from '../types'
 
 const INSIGHT_TYPES = [
@@ -91,6 +93,7 @@ export default function Insights() {
   )
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [question, setQuestion] = useState('')
+  const { provider, setProvider } = useAIProvider()
   const [chatAnswer, setChatAnswer] = useState('')
 
   const { data: insights = [] } = useQuery<Insight[]>({
@@ -99,11 +102,11 @@ export default function Insights() {
   })
 
   const generateMutation = useMutation({
-    mutationFn: (type: string) => insightsApi.generate(type, startDate, endDate),
+    mutationFn: (type: string) => insightsApi.generate(type, startDate, endDate, provider),
   })
 
   const askMutation = useMutation({
-    mutationFn: () => insightsApi.ask(question, startDate, endDate),
+    mutationFn: () => insightsApi.ask(question, startDate, endDate, provider),
     onSuccess: (data) => {
       setChatAnswer(data.answer)
       setQuestion('')
@@ -134,6 +137,10 @@ export default function Insights() {
               onChange={(e) => setEndDate(e.target.value)}
               className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">AI Provider</label>
+            <AIProviderToggle provider={provider} onChange={setProvider} />
           </div>
         </div>
         <div className="flex flex-wrap gap-2">

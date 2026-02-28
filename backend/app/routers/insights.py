@@ -10,7 +10,7 @@ from app.database import get_db
 from app.models.insight import InsightCache
 from app.models.user import User
 from app.routers.auth import get_current_user
-from app.services.claude_service import ClaudeService
+from app.services.claude_service import InsightsService
 
 router = APIRouter()
 
@@ -19,6 +19,7 @@ class GenerateInsightRequest(BaseModel):
     insight_type: str  # spending_summary | anomalies | forecast | category_analysis | recommendations
     start_date: date
     end_date: date
+    provider: str = "gemini"  # "gemini" | "anthropic"
 
 
 class InsightResponse(BaseModel):
@@ -36,6 +37,7 @@ class AskRequest(BaseModel):
     question: str
     start_date: date | None = None
     end_date: date | None = None
+    provider: str = "gemini"  # "gemini" | "anthropic"
 
 
 class AskResponse(BaseModel):
@@ -48,13 +50,14 @@ async def generate_insight(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    claude_service = ClaudeService()
-    insight = await claude_service.generate_insight(
+    service = InsightsService()
+    insight = await service.generate_insight(
         user_id=current_user.id,
         insight_type=request.insight_type,
         start_date=request.start_date,
         end_date=request.end_date,
         db=db,
+        provider=request.provider,
     )
     return InsightResponse(
         id=insight.id,
@@ -98,12 +101,13 @@ async def ask_question(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    claude_service = ClaudeService()
-    answer = await claude_service.ask_about_finances(
+    service = InsightsService()
+    answer = await service.ask_about_finances(
         user_id=current_user.id,
         question=request.question,
         start_date=request.start_date,
         end_date=request.end_date,
         db=db,
+        provider=request.provider,
     )
     return AskResponse(answer=answer)

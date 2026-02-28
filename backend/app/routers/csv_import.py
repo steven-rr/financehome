@@ -61,9 +61,13 @@ def detect_and_parse_csv(content: str) -> list[dict]:
     if headers_lower >= {"status", "date", "description", "debit", "credit"}:
         return _parse_citi(reader)
 
+    # Capital One (English): Transaction Date, Posted Date, Card No., Description, Category, Debit, Credit
+    if headers_lower >= {"transaction date", "posted date", "card no.", "description", "debit", "credit"}:
+        return _parse_capital_one(reader)
+
     # Capital One (Spanish headers)
     if headers_lower >= {"fecha de transacción", "descripción", "débito"}:
-        return _parse_capital_one(reader)
+        return _parse_capital_one_spanish(reader)
 
     # Generic fallback: expect date, description, amount at minimum
     if headers_lower >= {"date", "description", "amount"}:
@@ -246,6 +250,50 @@ def _parse_citi(reader: csv.DictReader) -> list[dict]:
 
 
 def _parse_capital_one(reader: csv.DictReader) -> list[dict]:
+    """Parse Capital One credit card CSV (English).
+
+    Capital One uses separate Debit/Credit columns.
+    Debit = expense (positive), Credit = payment (negative).
+    """
+    rows = []
+    for raw in reader:
+        row = {k.strip().lower(): v.strip() for k, v in raw.items() if k}
+        date_str = row.get("transaction date", "")
+        if not date_str:
+            continue
+
+        try:
+            txn_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            try:
+                txn_date = datetime.strptime(date_str, "%m/%d/%Y").date()
+            except ValueError:
+                continue
+
+        debit = row.get("debit", "").replace(",", "").strip()
+        credit = row.get("credit", "").replace(",", "").strip()
+
+        if debit:
+            amount = float(debit)  # positive = expense
+        elif credit:
+            amount = -float(credit)  # negative = payment/income
+        else:
+            continue
+
+        description = row.get("description", "").strip()
+        category = row.get("category", "").strip() or None
+
+        rows.append({
+            "date": txn_date,
+            "amount": round(amount, 2),
+            "merchant_name": None,
+            "description": description,
+            "category": category,
+        })
+    return rows
+
+
+def _parse_capital_one_spanish(reader: csv.DictReader) -> list[dict]:
     rows = []
     for raw in reader:
         row = {k.strip().lower(): v.strip() for k, v in raw.items() if k}

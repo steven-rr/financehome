@@ -11,6 +11,7 @@ from app.models.account import Account
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.routers.auth import get_current_user
+from app.services.analytics_service import normalize_category
 
 router = APIRouter()
 
@@ -112,8 +113,17 @@ async def list_transactions(
     result = await db.execute(query)
     transactions = result.scalars().all()
 
+    items = []
+    for t in transactions:
+        item = TransactionResponse.model_validate(t)
+        if item.category:
+            item.category = normalize_category(item.category)
+        if item.ai_category:
+            item.ai_category = normalize_category(item.ai_category)
+        items.append(item)
+
     return PaginatedTransactions(
-        items=[TransactionResponse.model_validate(t) for t in transactions],
+        items=items,
         total=total,
         page=page,
         per_page=per_page,
@@ -235,7 +245,7 @@ async def get_expense_transactions(
             description=row.description,
             merchant_name=row.merchant_name,
             amount=round(row.amount, 2),
-            category=row.effective_category or "Uncategorized",
+            category=normalize_category(row.effective_category or "Uncategorized"),
         )
         for row in result.all()
     ]
@@ -275,9 +285,16 @@ async def get_category_summary(
         query = query.where(Transaction.date <= end_date)
 
     result = await db.execute(query)
-    rows = result.all()
-
-    return [
-        CategorySummary(category=row.category or "Uncategorized", total=round(row.total, 2), count=row.count)
-        for row in rows
-    ]
+    merged: dict[str, dict] = {}
+    for row in result.all():
+        cat = normalize_category(row.category or "Uncategorized")
+        if cat in merged:
+            merged[cat]["total"] += row.total
+            merged[cat]["count"] += row.count
+        else:
+            merged[cat] = {"total": row.total, "count": row.count}
+    return sorted(
+        [CategorySummary(category=k, total=round(v["total"], 2), count=v["count"]) for k, v in merged.items()],
+        key=lambda x: x.total,
+        reverse=True,
+    )

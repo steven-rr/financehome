@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     # Google Gemini (used for insights + transaction categorization)
     gemini_api_key: str = ""
 
+    # Anthropic Claude (paid alternative for insights + categorization)
+    anthropic_api_key: str = ""
+
     # Encryption key for Plaid access tokens
     encryption_key: str = ""
 
