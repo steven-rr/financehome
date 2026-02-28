@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, startOfMonth } from 'date-fns'
-import { ArrowDownRight, ArrowUpRight, Check, ChevronDown, ChevronRight, DollarSign, Pencil, Plus, Repeat, Target, Trash2, TrendingUp, Wallet, X } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, Check, ChevronDown, ChevronRight, DollarSign, Pencil, Plus, Repeat, Sparkles, Target, Trash2, TrendingUp, Wallet, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { accountsApi } from '../api/accounts'
 import { budgetsApi } from '../api/budgets'
+import { insightsApi } from '../api/insights'
 import { recurringApi } from '../api/recurring'
 import { transactionsApi } from '../api/transactions'
 import type { Account, Budget, MonthlyTrend, RecurringItem, RecurringSummary, Transaction } from '../types'
@@ -90,6 +91,12 @@ export default function Dashboard() {
   const { data: budgets = [] } = useQuery<Budget[]>({
     queryKey: ['budgets'],
     queryFn: budgetsApi.list,
+  })
+
+  const { data: spendingInsights, isLoading: insightsLoading } = useQuery({
+    queryKey: ['spending-insights'],
+    queryFn: insightsApi.spendingInsights,
+    staleTime: 1000 * 60 * 60, // 1 hour
   })
 
   const queryClient = useQueryClient()
@@ -488,6 +495,28 @@ export default function Dashboard() {
             </ResponsiveContainer>
           )}
         </div>
+      </div>
+
+      {/* Spending Insights */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles className="w-5 h-5 text-purple-500" />
+          <h2 className="text-lg font-semibold text-slate-900">Spending Insights</h2>
+        </div>
+        {insightsLoading ? (
+          <p className="text-sm text-slate-500">Analyzing your spending patterns...</p>
+        ) : spendingInsights && spendingInsights.insights.length > 0 ? (
+          <ul className="space-y-2">
+            {spendingInsights.insights.map((insight, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                <span className="text-purple-400 mt-0.5">&#8226;</span>
+                {insight}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-500">Not enough data for insights yet.</p>
+        )}
       </div>
 
       {/* Accounts & Recent Transactions */}

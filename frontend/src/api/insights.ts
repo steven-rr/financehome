@@ -23,6 +23,11 @@ export const insightsApi = {
     return data
   },
 
+  spendingInsights: async (): Promise<{ insights: string[]; generated_at: string }> => {
+    const { data } = await client.get('/insights/spending-insights')
+    return data
+  },
+
   ask: async (
     question: string,
     startDate?: string,

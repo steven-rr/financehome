@@ -1,5 +1,6 @@
+import json
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -10,6 +11,7 @@ from app.database import get_db
 from app.models.insight import InsightCache
 from app.models.user import User
 from app.routers.auth import get_current_user
+from app.services.analytics_service import AnalyticsService
 from app.services.claude_service import InsightsService
 
 router = APIRouter()
@@ -111,3 +113,87 @@ async def ask_question(
         provider=request.provider,
     )
     return AskResponse(answer=answer)
+
+
+class SpendingInsightsResponse(BaseModel):
+    insights: list[str]
+    generated_at: str
+
+
+@router.get("/spending-insights", response_model=SpendingInsightsResponse)
+async def get_spending_insights(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    today = date.today()
+
+    # Check for cached insights generated today
+    cached = await db.execute(
+        select(InsightCache)
+        .where(
+            InsightCache.user_id == current_user.id,
+            InsightCache.insight_type == "spending_insights",
+            InsightCache.generated_at >= today,
+        )
+        .order_by(InsightCache.generated_at.desc())
+        .limit(1)
+    )
+    existing = cached.scalar_one_or_none()
+    if existing:
+        return SpendingInsightsResponse(
+            insights=existing.content.get("insights", []),
+            generated_at=existing.generated_at.isoformat(),
+        )
+
+    # Compute current month vs previous month data
+    current_month_start = today.replace(day=1)
+    prev_month_end = current_month_start - timedelta(days=1)
+    prev_month_start = prev_month_end.replace(day=1)
+
+    analytics = AnalyticsService()
+    current_spending = await analytics.get_spending_by_category(current_user.id, current_month_start, today, db)
+    prev_spending = await analytics.get_spending_by_category(current_user.id, prev_month_start, prev_month_end, db)
+    current_income = await analytics.get_income_vs_expenses(current_user.id, current_month_start, today, db)
+    prev_income = await analytics.get_income_vs_expenses(current_user.id, prev_month_start, prev_month_end, db)
+
+    prompt = f"""You are a personal finance analyst. Compare this month's spending to last month's and generate observations.
+
+This Month ({current_month_start.strftime('%B %Y')}, {today.day} days in):
+- Income: ${current_income['income']:,.2f}, Expenses: ${current_income['expenses']:,.2f}, Net: ${current_income['net']:,.2f}
+- Spending by category: {json.dumps(current_spending)}
+
+Last Month ({prev_month_start.strftime('%B %Y')}, full month):
+- Income: ${prev_income['income']:,.2f}, Expenses: ${prev_income['expenses']:,.2f}, Net: ${prev_income['net']:,.2f}
+- Spending by category: {json.dumps(prev_spending)}
+
+Generate 4-5 concise, specific observations as a JSON array of strings.
+Focus on: notable month-over-month changes, trends, largest spending categories, areas of concern or improvement.
+Use specific dollar amounts and percentages. Keep each observation to 1 sentence.
+Account for the fact that the current month may not be complete yet when comparing totals.
+Example format: ["Restaurants spending is up 35% ($420 vs $310 last month).", "Grocery spending dropped by $85 compared to last month."]"""
+
+    service = InsightsService()
+    try:
+        response_text = await service._call_gemini(prompt, temperature=0.3, json_mode=True)
+        insights = json.loads(response_text)
+        if not isinstance(insights, list):
+            insights = insights.get("insights", []) if isinstance(insights, dict) else []
+    except Exception:
+        insights = ["Unable to generate insights at this time. Try again later."]
+
+    # Cache the result
+    cache_entry = InsightCache(
+        user_id=current_user.id,
+        insight_type="spending_insights",
+        period_start=prev_month_start,
+        period_end=today,
+        content={"insights": insights},
+    )
+    db.add(cache_entry)
+    await db.commit()
+    await db.refresh(cache_entry)
+
+    return SpendingInsightsResponse(
+        insights=insights,
+        generated_at=cache_entry.generated_at.isoformat(),
+    )
