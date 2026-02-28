@@ -48,26 +48,26 @@ export default function ImportModal({ files, accounts, onConfirm, onCancel }: Im
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">Import CSV Files</h2>
-          <button onClick={onCancel} className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
-            <X className="w-5 h-5 text-slate-500" />
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Import CSV Files</h2>
+          <button onClick={onCancel} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+            <X className="w-5 h-5 text-slate-500 dark:text-slate-400" />
           </button>
         </div>
 
         <div className="overflow-y-auto px-6 py-4 space-y-4 flex-1">
-          <p className="text-sm text-slate-500">Choose which account each file should import into.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Choose which account each file should import into.</p>
 
           {files.map((f) => (
-            <div key={f.name} className="border border-slate-200 rounded-lg p-4 space-y-2">
-              <p className="text-sm font-medium text-slate-900 truncate">{f.name}</p>
+            <div key={f.name} className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-2">
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{f.name}</p>
               <select
                 value={selections[f.name]}
                 onChange={(e) =>
                   setSelections((s) => ({ ...s, [f.name]: e.target.value }))
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
               >
                 <option value="new">Create new account</option>
                 {accounts.map((a) => (
@@ -85,23 +85,23 @@ export default function ImportModal({ files, accounts, onConfirm, onCancel }: Im
                     setCustomNames((n) => ({ ...n, [f.name]: e.target.value }))
                   }
                   placeholder="Account name"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                 />
               )}
             </div>
           ))}
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700">
           <button
             onClick={onCancel}
-            className="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors"
+            className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
-            className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
+            className="px-4 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm font-medium rounded-lg hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors"
           >
             Import {files.length} file{files.length > 1 ? 's' : ''}
           </button>

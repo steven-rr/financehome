@@ -3,6 +3,7 @@ import { format, startOfMonth } from 'date-fns'
 import { ArrowDownRight, ArrowUpRight, Check, ChevronDown, ChevronRight, DollarSign, Pencil, Plus, Repeat, Sparkles, Target, Trash2, TrendingUp, Wallet, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { useTheme } from '../context/ThemeContext'
 import { accountsApi } from '../api/accounts'
 import { budgetsApi } from '../api/budgets'
 import { insightsApi } from '../api/insights'
@@ -22,14 +23,14 @@ function StatCard({
   color: string
 }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm text-slate-500">{title}</span>
+        <span className="text-sm text-slate-500 dark:text-slate-400">{title}</span>
         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
           <Icon className="w-5 h-5 text-white" />
         </div>
       </div>
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
+      <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{value}</p>
     </div>
   )
 }
@@ -60,6 +61,7 @@ function formatCurrency(amount: number) {
 }
 
 export default function Dashboard() {
+  const { isDark } = useTheme()
   const today = format(new Date(), 'yyyy-MM-dd')
   const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd')
 
@@ -207,7 +209,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Dashboard</h1>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">Dashboard</h1>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -240,10 +242,10 @@ export default function Dashboard() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Spending by Category */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Spending by Category</h2>
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Spending by Category</h2>
           {categories.length === 0 ? (
-            <p className="text-slate-500 text-sm">No spending data this month.</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">No spending data this month.</p>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
@@ -263,12 +265,12 @@ export default function Dashboard() {
                 </Pie>
                 <Tooltip
                   formatter={(value: number) => formatCurrency(value)}
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                  contentStyle={{ borderRadius: '8px', border: '1px solid', borderColor: isDark ? '#334155' : '#e2e8f0', backgroundColor: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#1e293b' }}
                 />
                 <Legend
                   layout="horizontal"
                   verticalAlign="bottom"
-                  wrapperStyle={{ fontSize: '12px' }}
+                  wrapperStyle={{ fontSize: '12px', color: isDark ? '#94a3b8' : undefined }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -276,11 +278,11 @@ export default function Dashboard() {
 
           {/* Budget Targets */}
           {(budgetProgress.length > 0 || categories.length > 0) && (
-            <div className="mt-6 pt-6 border-t border-slate-200">
+            <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Target className="w-4 h-4 text-slate-400" />
-                  <h3 className="text-sm font-semibold text-slate-700">Budget Targets</h3>
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Budget Targets</h3>
                 </div>
                 {!addingBudget && unbudgetedCategories.length > 0 && (
                   <button
@@ -298,24 +300,24 @@ export default function Dashboard() {
               </div>
 
               {addingBudget && (
-                <div className="flex items-center gap-2 mb-3 p-2 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-2 mb-3 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
                   <select
                     value={newBudgetCategory}
                     onChange={(e) => setNewBudgetCategory(e.target.value)}
-                    className="text-sm border border-slate-300 rounded-md px-2 py-1 flex-1"
+                    className="text-sm border border-slate-300 dark:border-slate-600 rounded-md px-2 py-1 flex-1 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                   >
                     {unbudgetedCategories.map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
                   <div className="flex items-center gap-1">
-                    <span className="text-sm text-slate-500">$</span>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">$</span>
                     <input
                       type="number"
                       placeholder="0"
                       value={newBudgetLimit}
                       onChange={(e) => setNewBudgetLimit(e.target.value)}
-                      className="w-20 text-sm border border-slate-300 rounded-md px-2 py-1"
+                      className="w-20 text-sm border border-slate-300 dark:border-slate-600 rounded-md px-2 py-1 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                       min="1"
                       step="1"
                     />
@@ -334,7 +336,7 @@ export default function Dashboard() {
                   </button>
                   <button
                     onClick={() => setAddingBudget(false)}
-                    className="p-1 text-slate-400 hover:text-slate-600"
+                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -345,16 +347,16 @@ export default function Dashboard() {
                 {budgetProgress.map(({ category, spent, limit, percentage, subcategories }) => (
                   <div key={category} className="group">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-slate-700">{category}</span>
+                      <span className="text-sm text-slate-700 dark:text-slate-300">{category}</span>
                       <div className="flex items-center gap-2">
                         {editingCategory === category ? (
                           <div className="flex items-center gap-1">
-                            <span className="text-xs text-slate-500">$</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">$</span>
                             <input
                               type="number"
                               value={editValue}
                               onChange={(e) => setEditValue(e.target.value)}
-                              className="w-16 text-xs border border-slate-300 rounded px-1.5 py-0.5"
+                              className="w-16 text-xs border border-slate-300 dark:border-slate-600 rounded px-1.5 py-0.5 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                               min="1"
                               autoFocus
                               onKeyDown={(e) => {
@@ -382,14 +384,14 @@ export default function Dashboard() {
                             </button>
                             <button
                               onClick={() => setEditingCategory(null)}
-                              className="p-0.5 text-slate-400 hover:text-slate-600"
+                              className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         ) : (
                           <div className="flex items-center gap-1">
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
                               {formatCurrency(spent)} / {formatCurrency(limit)}
                             </span>
                             <button
@@ -397,7 +399,7 @@ export default function Dashboard() {
                                 setEditingCategory(category)
                                 setEditValue(String(limit))
                               }}
-                              className="p-0.5 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-opacity"
+                              className="p-0.5 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-opacity"
                             >
                               <Pencil className="w-3 h-3" />
                             </button>
@@ -411,7 +413,7 @@ export default function Dashboard() {
                         )}
                       </div>
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2">
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full transition-all ${
                           percentage > 100
@@ -451,28 +453,28 @@ export default function Dashboard() {
         </div>
 
         {/* Monthly Trend */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Monthly Trend</h2>
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Monthly Trend</h2>
           {monthlyTrend.length === 0 ? (
-            <p className="text-slate-500 text-sm">Not enough data to show trends yet.</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">Not enough data to show trends yet.</p>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={monthlyTrend}>
                 <XAxis
                   dataKey="month"
-                  tick={{ fontSize: 12, fill: '#64748b' }}
-                  axisLine={{ stroke: '#e2e8f0' }}
+                  tick={{ fontSize: 12, fill: isDark ? '#94a3b8' : '#64748b' }}
+                  axisLine={{ stroke: isDark ? '#334155' : '#e2e8f0' }}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  tick={{ fontSize: 12, fill: isDark ? '#94a3b8' : '#64748b' }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(v) => `$${(v / 1000).toFixed(1)}k`}
                 />
                 <Tooltip
                   formatter={(value: number) => formatCurrency(value)}
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                  contentStyle={{ borderRadius: '8px', border: '1px solid', borderColor: isDark ? '#334155' : '#e2e8f0', backgroundColor: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#1e293b' }}
                 />
                 <Line
                   type="monotone"
@@ -490,7 +492,7 @@ export default function Dashboard() {
                   dot={{ r: 4, fill: '#ef4444' }}
                   name="Expenses"
                 />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
+                <Legend wrapperStyle={{ fontSize: '12px', color: isDark ? '#94a3b8' : undefined }} />
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -498,34 +500,34 @@ export default function Dashboard() {
       </div>
 
       {/* Spending Insights */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-6 mb-6">
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="w-5 h-5 text-purple-500" />
-          <h2 className="text-lg font-semibold text-slate-900">Spending Insights</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Spending Insights</h2>
         </div>
         {insightsLoading ? (
-          <p className="text-sm text-slate-500">Analyzing your spending patterns...</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Analyzing your spending patterns...</p>
         ) : spendingInsights && spendingInsights.insights.length > 0 ? (
           <ul className="space-y-2">
             {spendingInsights.insights.map((insight, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+              <li key={i} className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300">
                 <span className="text-purple-400 mt-0.5">&#8226;</span>
                 {insight}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-slate-500">Not enough data for insights yet.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Not enough data for insights yet.</p>
         )}
       </div>
 
       {/* Accounts & Recent Transactions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Accounts */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Accounts</h2>
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Accounts</h2>
           {accounts.length === 0 ? (
-            <p className="text-slate-500 text-sm">
+            <p className="text-slate-500 dark:text-slate-400 text-sm">
               No accounts linked yet. Go to the Accounts page to connect your banks.
             </p>
           ) : (
@@ -533,15 +535,15 @@ export default function Dashboard() {
               {accounts.map((account) => (
                 <div
                   key={account.id}
-                  className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0"
+                  className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800 last:border-0"
                 >
                   <div>
-                    <p className="text-sm font-medium text-slate-900">{account.name}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{account.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       {account.institution_name} &middot; {account.subtype || account.type}
                     </p>
                   </div>
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                     {formatCurrency(account.balance_current || 0)}
                   </p>
                 </div>
@@ -551,21 +553,21 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Transactions */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Recent Transactions</h2>
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Recent Transactions</h2>
           {!recentTxns || recentTxns.items.length === 0 ? (
-            <p className="text-slate-500 text-sm">No transactions yet. Sync your accounts to see transactions.</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">No transactions yet. Sync your accounts to see transactions.</p>
           ) : (
             <div className="space-y-3">
               {recentTxns.items.map((txn: Transaction) => (
                 <div
                   key={txn.id}
-                  className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0"
+                  className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800 last:border-0"
                 >
                   <div className="flex items-center gap-3">
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        txn.amount > 0 ? 'bg-red-50' : 'bg-emerald-50'
+                        txn.amount > 0 ? 'bg-red-50 dark:bg-red-900/30' : 'bg-emerald-50 dark:bg-emerald-900/30'
                       }`}
                     >
                       {txn.amount > 0 ? (
@@ -575,10 +577,10 @@ export default function Dashboard() {
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-900">
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
                         {txn.merchant_name || txn.description}
                       </p>
-                      <p className="text-xs text-slate-500">{txn.date}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{txn.date}</p>
                     </div>
                   </div>
                   <p
@@ -597,16 +599,16 @@ export default function Dashboard() {
       </div>
 
       {/* Monthly Autopilot */}
-      <div className="mt-6 bg-white rounded-xl border border-slate-200 p-6">
+      <div className="mt-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Repeat className="w-5 h-5 text-slate-400" />
-            <h2 className="text-lg font-semibold text-slate-900">Monthly Autopilot</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Monthly Autopilot</h2>
           </div>
           {recurring && recurring.items.length > 0 && (
             <div className="text-right">
-              <p className="text-xs text-slate-500">Estimated monthly</p>
-              <p className="text-lg font-bold text-slate-900">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Estimated monthly</p>
+              <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
                 {formatCurrency(recurring.total_monthly_cost)}
               </p>
             </div>
@@ -614,7 +616,7 @@ export default function Dashboard() {
         </div>
 
         {groupedRecurring.length === 0 ? (
-          <p className="text-slate-500 text-sm">
+          <p className="text-slate-500 dark:text-slate-400 text-sm">
             Not enough transaction history to detect recurring expenses yet.
           </p>
         ) : (
@@ -625,7 +627,7 @@ export default function Dashboard() {
                 <div key={group.category}>
                   <button
                     onClick={() => toggleCategory(group.category)}
-                    className="w-full flex items-center justify-between py-3 px-2 rounded-lg hover:bg-slate-50 transition-colors"
+                    className="w-full flex items-center justify-between py-3 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       {isExpanded ? (
@@ -633,27 +635,27 @@ export default function Dashboard() {
                       ) : (
                         <ChevronRight className="w-4 h-4 text-slate-400" />
                       )}
-                      <span className="text-sm font-medium text-slate-900">{group.category}</span>
+                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{group.category}</span>
                       <span className="text-xs text-slate-400">{group.items.length}</span>
                     </div>
-                    <span className="text-sm font-semibold text-slate-900">
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                       {formatCurrency(group.total)}
                     </span>
                   </button>
                   {isExpanded && (
-                    <div className="ml-7 pl-4 border-l-2 border-slate-100 space-y-1 pb-2">
+                    <div className="ml-7 pl-4 border-l-2 border-slate-100 dark:border-slate-800 space-y-1 pb-2">
                       {group.items.map((item, i) => (
                         <div
                           key={i}
                           className="flex items-center justify-between py-2 px-2"
                         >
                           <div>
-                            <p className="text-sm text-slate-700">{item.merchant}</p>
+                            <p className="text-sm text-slate-700 dark:text-slate-300">{item.merchant}</p>
                             <p className="text-xs text-slate-400">
                               {item.frequency.charAt(0).toUpperCase() + item.frequency.slice(1)}
                             </p>
                           </div>
-                          <p className="text-sm text-slate-600">
+                          <p className="text-sm text-slate-600 dark:text-slate-400">
                             {formatCurrency(item.amount)}
                           </p>
                         </div>

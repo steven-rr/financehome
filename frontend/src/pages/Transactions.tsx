@@ -162,19 +162,19 @@ export default function Transactions() {
         />
       )}
       {isDragging && (
-        <div className="absolute inset-0 z-50 bg-emerald-50/80 border-2 border-dashed border-emerald-400 rounded-xl flex items-center justify-center backdrop-blur-sm">
+        <div className="absolute inset-0 z-50 bg-emerald-50/80 dark:bg-emerald-900/30 border-2 border-dashed border-emerald-400 rounded-xl flex items-center justify-center backdrop-blur-sm">
           <div className="text-center">
             <Upload className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
-            <p className="text-lg font-semibold text-emerald-700">Drop CSV files here</p>
-            <p className="text-sm text-emerald-600">Multiple files supported</p>
+            <p className="text-lg font-semibold text-emerald-700 dark:text-emerald-400">Drop CSV files here</p>
+            <p className="text-sm text-emerald-600 dark:text-emerald-500">Multiple files supported</p>
           </div>
         </div>
       )}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Transactions</h1>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Transactions</h1>
         <div className="flex items-center gap-3">
           {importStatus && (
-            <span className="text-sm text-slate-600">{importStatus}</span>
+            <span className="text-sm text-slate-600 dark:text-slate-400">{importStatus}</span>
           )}
           <input
             ref={fileInputRef}
@@ -188,21 +188,21 @@ export default function Transactions() {
           <button
             onClick={handleCategorize}
             disabled={isCategorizing}
-            className="flex items-center gap-2 px-4 py-2 border border-purple-300 text-purple-700 text-sm font-medium rounded-lg hover:bg-purple-50 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-400 text-sm font-medium rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors disabled:opacity-50"
           >
             <Sparkles className="w-4 h-4" />
             {isCategorizing ? 'Categorizing...' : 'AI Categorize'}
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
             <Upload className="w-4 h-4" />
             Import CSV
           </button>
           <button
             onClick={() => exportApi.downloadTransactions(filters.start_date, filters.end_date)}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm font-medium rounded-lg hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors"
           >
             <Download className="w-4 h-4" />
             Download CSV
@@ -211,34 +211,34 @@ export default function Transactions() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4 mb-6">
         <div className="flex flex-wrap gap-4 items-end">
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Start Date</label>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Start Date</label>
             <input
               type="date"
               value={filters.start_date || ''}
               onChange={(e) => setFilters((f) => ({ ...f, start_date: e.target.value, page: 1 }))}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">End Date</label>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">End Date</label>
             <input
               type="date"
               value={filters.end_date || ''}
               onChange={(e) => setFilters((f) => ({ ...f, end_date: e.target.value, page: 1 }))}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Account</label>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Account</label>
             <select
               value={filters.account_id || ''}
               onChange={(e) =>
                 setFilters((f) => ({ ...f, account_id: e.target.value || undefined, page: 1 }))
               }
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
             >
               <option value="">All Accounts</option>
               {accounts.map((a) => (
@@ -249,7 +249,7 @@ export default function Transactions() {
             </select>
           </div>
           <div className="flex-1 min-w-[200px]">
-            <label className="block text-xs font-medium text-slate-500 mb-1">Search</label>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Search</label>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -257,13 +257,13 @@ export default function Transactions() {
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder="Search transactions..."
-                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
               />
               <button
                 onClick={handleSearch}
-                className="px-3 py-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                className="px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
               >
-                <Search className="w-4 h-4 text-slate-600" />
+                <Search className="w-4 h-4 text-slate-600 dark:text-slate-400" />
               </button>
             </div>
           </div>
@@ -271,45 +271,45 @@ export default function Transactions() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-slate-500">Loading transactions...</div>
+          <div className="p-8 text-center text-slate-500 dark:text-slate-400">Loading transactions...</div>
         ) : !data || data.items.length === 0 ? (
-          <div className="p-8 text-center text-slate-500">No transactions found.</div>
+          <div className="p-8 text-center text-slate-500 dark:text-slate-400">No transactions found.</div>
         ) : (
           <>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Date</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Description</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 uppercase">Category</th>
-                  <th className="text-right px-6 py-3 text-xs font-medium text-slate-500 uppercase">Amount</th>
+                <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                  <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Date</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Description</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Category</th>
+                  <th className="text-right px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Amount</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {data.items.map((txn) => (
-                  <tr key={txn.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-3 text-sm text-slate-600">{txn.date}</td>
+                  <tr key={txn.id} className="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    <td className="px-6 py-3 text-sm text-slate-600 dark:text-slate-400">{txn.date}</td>
                     <td className="px-6 py-3">
-                      <p className="text-sm font-medium text-slate-900">
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
                         {txn.merchant_name || txn.description}
                       </p>
                       {txn.merchant_name && (
-                        <p className="text-xs text-slate-500">{txn.description}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{txn.description}</p>
                       )}
                     </td>
                     <td className="px-6 py-3">
                       {txn.category ? (
-                        <span className="text-xs px-2 py-1 bg-slate-100 text-slate-600 rounded-full">
+                        <span className="text-xs px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full">
                           {txn.category}
                         </span>
                       ) : txn.ai_category ? (
-                        <span className="text-xs px-2 py-1 bg-purple-50 text-purple-600 rounded-full">
+                        <span className="text-xs px-2 py-1 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full">
                           {txn.ai_category}
                         </span>
                       ) : (
-                        <span className="text-xs px-2 py-1 bg-slate-50 text-slate-400 rounded-full">
+                        <span className="text-xs px-2 py-1 bg-slate-50 dark:bg-slate-800 text-slate-400 rounded-full">
                           Uncategorized
                         </span>
                       )}
@@ -328,8 +328,8 @@ export default function Transactions() {
             </table>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200">
-              <p className="text-sm text-slate-500">
+            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-700">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Showing {(data.page - 1) * data.per_page + 1}–
                 {Math.min(data.page * data.per_page, data.total)} of {data.total}
               </p>
@@ -337,14 +337,14 @@ export default function Transactions() {
                 <button
                   onClick={() => setFilters((f) => ({ ...f, page: (f.page || 1) - 1 }))}
                   disabled={data.page <= 1}
-                  className="p-2 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-30"
+                  className="p-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setFilters((f) => ({ ...f, page: (f.page || 1) + 1 }))}
                   disabled={data.page >= data.pages}
-                  className="p-2 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-30"
+                  className="p-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>

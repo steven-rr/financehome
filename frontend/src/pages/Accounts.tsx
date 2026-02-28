@@ -74,12 +74,12 @@ export default function Accounts() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Accounts</h1>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Accounts</h1>
         <div className="flex gap-3">
           <button
             onClick={() => syncMutation.mutate()}
             disabled={syncMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
             Sync All
@@ -89,39 +89,39 @@ export default function Accounts() {
       </div>
 
       {isLoading ? (
-        <p className="text-slate-500">Loading accounts...</p>
+        <p className="text-slate-500 dark:text-slate-400">Loading accounts...</p>
       ) : accounts.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
-          <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-slate-900 mb-2">No accounts linked</h2>
-          <p className="text-slate-500 mb-6">Connect your bank accounts to get started.</p>
+        <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+          <Building2 className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No accounts linked</h2>
+          <p className="text-slate-500 dark:text-slate-400 mb-6">Connect your bank accounts to get started.</p>
           <PlaidLinkButton />
         </div>
       ) : (
         <div className="space-y-6">
           {Object.entries(grouped).map(([institution, accts]) => (
-            <div key={institution} className="bg-white rounded-xl border border-slate-200">
-              <div className="px-6 py-4 border-b border-slate-100">
+            <div key={institution} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-slate-400" />
-                  <h2 className="text-lg font-semibold text-slate-900">{institution}</h2>
+                  <Building2 className="w-5 h-5 text-slate-400 dark:text-slate-400" />
+                  <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{institution}</h2>
                 </div>
               </div>
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {accts.map((account) => (
                   <div key={account.id} className="px-6 py-4 flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-slate-900">{account.name}</p>
-                      <p className="text-sm text-slate-500">
+                      <p className="font-medium text-slate-900 dark:text-slate-100">{account.name}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
                         {account.subtype || account.type} &middot; {account.currency}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-slate-900">
+                      <p className="font-semibold text-slate-900 dark:text-slate-100">
                         {formatCurrency(account.balance_current || 0)}
                       </p>
                       {account.balance_available != null && (
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
                           Available: {formatCurrency(account.balance_available)}
                         </p>
                       )}
