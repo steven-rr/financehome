@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, startOfMonth, subMonths } from 'date-fns'
-import { ChevronLeft, ChevronRight, Download, Search, Upload } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Search, Sparkles, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { accountsApi } from '../api/accounts'
 import { csvImportApi } from '../api/csvImport'
@@ -22,6 +22,7 @@ export default function Transactions() {
   })
   const [searchInput, setSearchInput] = useState('')
   const [importStatus, setImportStatus] = useState<string | null>(null)
+  const [isCategorizing, setIsCategorizing] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -62,6 +63,27 @@ export default function Transactions() {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       setImportStatus(detail ? `Import failed: ${detail}` : 'Import failed — check CSV format')
     }
+    setTimeout(() => setImportStatus(null), 8000)
+  }
+
+  const handleCategorize = async () => {
+    setIsCategorizing(true)
+    setImportStatus('Categorizing transactions with AI...')
+    try {
+      const result = await transactionsApi.categorize()
+      if (result.categorized === 0) {
+        setImportStatus('No uncategorized transactions found')
+      } else {
+        setImportStatus(`Categorized ${result.categorized} of ${result.total_uncategorized} transactions`)
+      }
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['categories'] })
+      queryClient.invalidateQueries({ queryKey: ['insights'] })
+    } catch (err) {
+      console.error('Categorization failed:', err)
+      setImportStatus('AI categorization failed')
+    }
+    setIsCategorizing(false)
     setTimeout(() => setImportStatus(null), 8000)
   }
 
@@ -159,6 +181,14 @@ export default function Transactions() {
             onChange={handleFileImport}
             className="hidden"
           />
+          <button
+            onClick={handleCategorize}
+            disabled={isCategorizing}
+            className="flex items-center gap-2 px-4 py-2 border border-purple-300 text-purple-700 text-sm font-medium rounded-lg hover:bg-purple-50 transition-colors disabled:opacity-50"
+          >
+            <Sparkles className="w-4 h-4" />
+            {isCategorizing ? 'Categorizing...' : 'AI Categorize'}
+          </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors"
@@ -266,9 +296,19 @@ export default function Transactions() {
                       )}
                     </td>
                     <td className="px-6 py-3">
-                      <span className="text-xs px-2 py-1 bg-slate-100 text-slate-600 rounded-full">
-                        {txn.category || 'Uncategorized'}
-                      </span>
+                      {txn.category ? (
+                        <span className="text-xs px-2 py-1 bg-slate-100 text-slate-600 rounded-full">
+                          {txn.category}
+                        </span>
+                      ) : txn.ai_category ? (
+                        <span className="text-xs px-2 py-1 bg-purple-50 text-purple-600 rounded-full">
+                          {txn.ai_category}
+                        </span>
+                      ) : (
+                        <span className="text-xs px-2 py-1 bg-slate-50 text-slate-400 rounded-full">
+                          Uncategorized
+                        </span>
+                      )}
                     </td>
                     <td
                       className={`px-6 py-3 text-sm font-semibold text-right ${

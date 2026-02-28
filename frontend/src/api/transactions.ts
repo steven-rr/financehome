@@ -51,4 +51,9 @@ export const transactionsApi = {
     const { data } = await client.get(`/transactions/income-expenses?${params.toString()}`)
     return data
   },
+
+  categorize: async (): Promise<{ categorized: number; total_uncategorized: number }> => {
+    const { data } = await client.post('/categorize/run')
+    return data
+  },
 }

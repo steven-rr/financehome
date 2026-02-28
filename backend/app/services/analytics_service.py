@@ -2,7 +2,6 @@ import uuid
 from datetime import date
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.sql import expression
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
@@ -37,9 +36,10 @@ class AnalyticsService:
         end_date: date,
         db: AsyncSession,
     ) -> list[dict]:
+        effective_category = func.coalesce(Transaction.category, Transaction.ai_category)
         result = await db.execute(
             select(
-                Transaction.category,
+                effective_category.label("category"),
                 func.sum(Transaction.amount).label("total"),
                 func.count().label("count"),
             )
@@ -49,10 +49,13 @@ class AnalyticsService:
                 Transaction.date >= start_date,
                 Transaction.date <= end_date,
                 Transaction.amount > 0,
-                or_(Transaction.category.is_(None), Transaction.category.notin_(TRANSFER_CATEGORIES)),
+                or_(
+                    effective_category.is_(None),
+                    effective_category.notin_(TRANSFER_CATEGORIES),
+                ),
                 ~_is_cc_payment(),
             )
-            .group_by(Transaction.category)
+            .group_by(effective_category)
             .order_by(func.sum(Transaction.amount).desc())
         )
         return [
@@ -84,7 +87,10 @@ class AnalyticsService:
                 Account.user_id == user_id,
                 Transaction.date >= start_date,
                 Transaction.date <= end_date,
-                or_(Transaction.category.is_(None), Transaction.category.notin_(TRANSFER_CATEGORIES)),
+                or_(
+                    func.coalesce(Transaction.category, Transaction.ai_category).is_(None),
+                    func.coalesce(Transaction.category, Transaction.ai_category).notin_(TRANSFER_CATEGORIES),
+                ),
                 ~_is_cc_payment(),
             )
         )
@@ -122,7 +128,7 @@ class AnalyticsService:
                 "amount": t.amount,
                 "merchant": t.merchant_name,
                 "description": t.description,
-                "category": t.category or "Uncategorized",
+                "category": t.category or t.ai_category or "Uncategorized",
             }
             for t in transactions
         ]

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import accounts, auth, csv_import, export, insights, plaid, transactions
+from app.routers import accounts, auth, categorize, csv_import, export, insights, plaid, transactions
 
 app = FastAPI(title="FinanceHome API", version="1.0.0")
 
@@ -21,6 +21,7 @@ app.include_router(transactions.router, prefix="/api/transactions", tags=["trans
 app.include_router(insights.router, prefix="/api/insights", tags=["insights"])
 app.include_router(export.router, prefix="/api/export", tags=["export"])
 app.include_router(csv_import.router, prefix="/api/import", tags=["import"])
+app.include_router(categorize.router, prefix="/api/categorize", tags=["categorize"])
 
 
 @app.get("/api/health")

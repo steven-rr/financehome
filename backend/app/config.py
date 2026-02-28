@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     plaid_env: str = "sandbox"  # sandbox | development | production
     plaid_webhook_url: str = ""
 
-    # Anthropic
-    anthropic_api_key: str = ""
+    # Google Gemini (used for insights + transaction categorization)
+    gemini_api_key: str = ""
 
     # Encryption key for Plaid access tokens
     encryption_key: str = ""

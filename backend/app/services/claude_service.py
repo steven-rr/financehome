@@ -1,8 +1,10 @@
+import asyncio
 import json
 import uuid
 from datetime import date
 
-import anthropic
+from google import genai
+from google.genai import types
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -11,10 +13,12 @@ from app.services.analytics_service import AnalyticsService
 
 
 class ClaudeService:
+    """Financial insights service powered by Gemini 2.5 Flash (free tier)."""
+
     def __init__(self):
-        self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        self.client = genai.Client(api_key=settings.gemini_api_key)
         self.analytics = AnalyticsService()
-        self.model = "claude-sonnet-4-6-20250514"
+        self.model = "gemini-2.5-flash"
 
     async def generate_insight(
         self,
@@ -37,13 +41,17 @@ class ClaudeService:
         }
 
         prompt = self._build_prompt(insight_type, context)
-        response = self.client.messages.create(
+        response = await asyncio.to_thread(
+            self.client.models.generate_content,
             model=self.model,
-            max_tokens=2000,
-            messages=[{"role": "user", "content": prompt}],
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.3,
+            ),
         )
 
-        content_text = response.content[0].text
+        content_text = response.text
         try:
             parsed_content = json.loads(content_text)
         except json.JSONDecodeError:
@@ -98,13 +106,16 @@ User's Question: {question}
 
 Provide a clear, helpful answer. Use specific numbers from the data. Be concise."""
 
-        response = self.client.messages.create(
+        response = await asyncio.to_thread(
+            self.client.models.generate_content,
             model=self.model,
-            max_tokens=1500,
-            messages=[{"role": "user", "content": prompt}],
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.3,
+            ),
         )
 
-        return response.content[0].text
+        return response.text
 
     def _build_prompt(self, insight_type: str, context: dict) -> str:
         base_context = f"""Analyze the following financial data for the period {context['period']}.

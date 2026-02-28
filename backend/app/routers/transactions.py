@@ -134,7 +134,10 @@ async def get_income_expenses(
         select(Transaction.amount)
         .join(Account, Transaction.account_id == Account.id)
         .where(Account.user_id == current_user.id)
-        .where(or_(Transaction.category.is_(None), Transaction.category.notin_(TRANSFER_CATEGORIES)))
+        .where(or_(
+            func.coalesce(Transaction.category, Transaction.ai_category).is_(None),
+            func.coalesce(Transaction.category, Transaction.ai_category).notin_(TRANSFER_CATEGORIES),
+        ))
         .where(~_is_cc_payment())
     )
 
@@ -169,7 +172,10 @@ async def get_income_transactions(
         .join(Account, Transaction.account_id == Account.id)
         .where(Account.user_id == current_user.id)
         .where(Transaction.amount < 0)
-        .where(or_(Transaction.category.is_(None), Transaction.category.notin_(TRANSFER_CATEGORIES)))
+        .where(or_(
+            func.coalesce(Transaction.category, Transaction.ai_category).is_(None),
+            func.coalesce(Transaction.category, Transaction.ai_category).notin_(TRANSFER_CATEGORIES),
+        ))
         .where(~_is_cc_payment())
         .order_by(Transaction.date.desc())
     )
@@ -201,11 +207,18 @@ async def get_expense_transactions(
     from app.services.analytics_service import TRANSFER_CATEGORIES, _is_cc_payment
 
     query = (
-        select(Transaction.date, Transaction.description, Transaction.merchant_name, Transaction.amount, Transaction.category)
+        select(
+            Transaction.date, Transaction.description, Transaction.merchant_name,
+            Transaction.amount,
+            func.coalesce(Transaction.category, Transaction.ai_category).label("effective_category"),
+        )
         .join(Account, Transaction.account_id == Account.id)
         .where(Account.user_id == current_user.id)
         .where(Transaction.amount > 0)
-        .where(or_(Transaction.category.is_(None), Transaction.category.notin_(TRANSFER_CATEGORIES)))
+        .where(or_(
+            func.coalesce(Transaction.category, Transaction.ai_category).is_(None),
+            func.coalesce(Transaction.category, Transaction.ai_category).notin_(TRANSFER_CATEGORIES),
+        ))
         .where(~_is_cc_payment())
         .order_by(Transaction.date.desc())
     )
@@ -222,7 +235,7 @@ async def get_expense_transactions(
             description=row.description,
             merchant_name=row.merchant_name,
             amount=round(row.amount, 2),
-            category=row.category or "Uncategorized",
+            category=row.effective_category or "Uncategorized",
         )
         for row in result.all()
     ]
@@ -237,18 +250,22 @@ async def get_category_summary(
 ):
     from app.services.analytics_service import TRANSFER_CATEGORIES, _is_cc_payment
 
+    effective_category = func.coalesce(Transaction.category, Transaction.ai_category)
     query = (
         select(
-            Transaction.category,
+            effective_category.label("category"),
             func.sum(Transaction.amount).label("total"),
             func.count().label("count"),
         )
         .join(Account, Transaction.account_id == Account.id)
         .where(Account.user_id == current_user.id)
         .where(Transaction.amount > 0)  # Expenses only (Plaid: positive = money out)
-        .where(or_(Transaction.category.is_(None), Transaction.category.notin_(TRANSFER_CATEGORIES)))
+        .where(or_(
+            effective_category.is_(None),
+            effective_category.notin_(TRANSFER_CATEGORIES),
+        ))
         .where(~_is_cc_payment())
-        .group_by(Transaction.category)
+        .group_by(effective_category)
         .order_by(func.sum(Transaction.amount).desc())
     )
 

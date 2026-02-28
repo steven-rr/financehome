@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -37,7 +37,10 @@ async def export_transactions_csv(
             Account.user_id == current_user.id,
             Transaction.date >= start_date,
             Transaction.date <= end_date,
-            or_(Transaction.category.is_(None), Transaction.category.notin_(TRANSFER_CATEGORIES)),
+            or_(
+                func.coalesce(Transaction.category, Transaction.ai_category).is_(None),
+                func.coalesce(Transaction.category, Transaction.ai_category).notin_(TRANSFER_CATEGORIES),
+            ),
             ~_is_cc_payment(),
         )
         .order_by(Transaction.date.desc())
@@ -53,7 +56,7 @@ async def export_transactions_csv(
             txn.date,
             txn.merchant_name or "",
             txn.description,
-            txn.category or "Uncategorized",
+            txn.category or txn.ai_category or "Uncategorized",
             round(abs(txn.amount), 2),
             "Expense" if txn.amount > 0 else "Income",
             account_name,
