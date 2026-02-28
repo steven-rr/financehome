@@ -24,6 +24,8 @@ class SyncService:
 
         synced = 0
         for link in links:
+            if link.access_token.startswith("manual-") or link.access_token.startswith("demo-"):
+                continue
             await self._sync_link(link, db)
             synced += 1
 

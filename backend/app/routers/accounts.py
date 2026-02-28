@@ -55,17 +55,11 @@ def _build_account_response(
     source = "csv" if is_manual else "plaid"
 
     # Determine effective balance
-    # For accounts with a manual anchor: anchor + delta from transactions after anchor date
+    # Manual anchor always wins when set — it's an intentional user action.
+    # Plaid sync doesn't touch balance_manual, so it stays until the user changes it.
+    # Delta = sum of transactions after the anchor date, keeping balance current.
     if acct.balance_manual is not None:
-        if is_manual:
-            balance_effective = acct.balance_manual + (txn_delta or 0)
-        elif acct.balance_manual_updated_at and acct.last_synced:
-            if acct.balance_manual_updated_at > acct.last_synced:
-                balance_effective = acct.balance_manual + (txn_delta or 0)
-            else:
-                balance_effective = acct.balance_current
-        else:
-            balance_effective = acct.balance_manual + (txn_delta or 0)
+        balance_effective = acct.balance_manual + (txn_delta or 0)
     elif acct.balance_current is not None:
         balance_effective = acct.balance_current
     else:
