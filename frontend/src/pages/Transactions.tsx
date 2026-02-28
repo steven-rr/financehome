@@ -6,6 +6,7 @@ import { accountsApi } from '../api/accounts'
 import { csvImportApi } from '../api/csvImport'
 import { exportApi } from '../api/export'
 import { transactionsApi } from '../api/transactions'
+import ImportModal, { type AccountMappings } from '../components/ImportModal'
 import type { Account, TransactionFilters } from '../types'
 
 function formatCurrency(amount: number) {
@@ -21,23 +22,88 @@ export default function Transactions() {
   })
   const [searchInput, setSearchInput] = useState('')
   const [importStatus, setImportStatus] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [pendingFiles, setPendingFiles] = useState<File[] | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const dragCounter = useRef(0)
   const queryClient = useQueryClient()
 
-  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setImportStatus('Importing...')
+  const stageFiles = (files: File[]) => {
+    const csvFiles = files.filter((f) => f.name.toLowerCase().endsWith('.csv'))
+    if (csvFiles.length === 0) {
+      setImportStatus('No .csv files found')
+      setTimeout(() => setImportStatus(null), 5000)
+      return
+    }
+    setPendingFiles(csvFiles)
+  }
+
+  const handleConfirmImport = async (mappings: AccountMappings) => {
+    if (!pendingFiles) return
+    const files = pendingFiles
+    setPendingFiles(null)
+
+    setImportStatus(`Importing ${files.length} file${files.length > 1 ? 's' : ''}...`)
     try {
-      const result = await csvImportApi.importTransactions(file)
-      setImportStatus(`Imported ${result.imported}, skipped ${result.skipped} duplicates`)
+      const formData = new FormData()
+      files.forEach((f) => formData.append('files', f))
+      formData.append('account_mappings', JSON.stringify(mappings))
+      const result = await csvImportApi.importBulk(formData)
+      const errors = result.files.filter((f) => f.error)
+      let msg = `Imported ${result.imported} from ${files.length} file${files.length > 1 ? 's' : ''}, skipped ${result.skipped} duplicates`
+      if (errors.length > 0) {
+        msg += ` (${errors.length} failed)`
+      }
+      setImportStatus(msg)
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
-    } catch {
-      setImportStatus('Import failed — check CSV format')
+    } catch (err: unknown) {
+      console.error('Import failed:', err)
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setImportStatus(detail ? `Import failed: ${detail}` : 'Import failed — check CSV format')
+    }
+    setTimeout(() => setImportStatus(null), 8000)
+  }
+
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      stageFiles(Array.from(e.target.files))
     }
     if (fileInputRef.current) fileInputRef.current.value = ''
-    setTimeout(() => setImportStatus(null), 5000)
+  }
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter.current++
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true)
+    }
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter.current--
+    if (dragCounter.current === 0) {
+      setIsDragging(false)
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    dragCounter.current = 0
+    const files = e.dataTransfer.files
+    if (files.length > 0) {
+      stageFiles(Array.from(files))
+    }
   }
 
   const { data: accounts = [] } = useQuery<Account[]>({
@@ -55,7 +121,30 @@ export default function Transactions() {
   }
 
   return (
-    <div>
+    <div
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className="relative"
+    >
+      {pendingFiles && (
+        <ImportModal
+          files={pendingFiles}
+          accounts={accounts}
+          onConfirm={handleConfirmImport}
+          onCancel={() => setPendingFiles(null)}
+        />
+      )}
+      {isDragging && (
+        <div className="absolute inset-0 z-50 bg-emerald-50/80 border-2 border-dashed border-emerald-400 rounded-xl flex items-center justify-center backdrop-blur-sm">
+          <div className="text-center">
+            <Upload className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
+            <p className="text-lg font-semibold text-emerald-700">Drop CSV files here</p>
+            <p className="text-sm text-emerald-600">Multiple files supported</p>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Transactions</h1>
         <div className="flex items-center gap-3">
@@ -65,7 +154,8 @@ export default function Transactions() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv"
+            accept=".csv,.CSV"
+            multiple
             onChange={handleFileImport}
             className="hidden"
           />

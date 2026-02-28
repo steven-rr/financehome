@@ -3,7 +3,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -134,7 +134,7 @@ async def get_income_expenses(
         select(Transaction.amount)
         .join(Account, Transaction.account_id == Account.id)
         .where(Account.user_id == current_user.id)
-        .where(Transaction.category.notin_(TRANSFER_CATEGORIES))
+        .where(or_(Transaction.category.is_(None), Transaction.category.notin_(TRANSFER_CATEGORIES)))
         .where(~_is_cc_payment())
     )
 
@@ -169,7 +169,7 @@ async def get_income_transactions(
         .join(Account, Transaction.account_id == Account.id)
         .where(Account.user_id == current_user.id)
         .where(Transaction.amount < 0)
-        .where(Transaction.category.notin_(TRANSFER_CATEGORIES))
+        .where(or_(Transaction.category.is_(None), Transaction.category.notin_(TRANSFER_CATEGORIES)))
         .where(~_is_cc_payment())
         .order_by(Transaction.date.desc())
     )
@@ -205,7 +205,7 @@ async def get_expense_transactions(
         .join(Account, Transaction.account_id == Account.id)
         .where(Account.user_id == current_user.id)
         .where(Transaction.amount > 0)
-        .where(Transaction.category.notin_(TRANSFER_CATEGORIES))
+        .where(or_(Transaction.category.is_(None), Transaction.category.notin_(TRANSFER_CATEGORIES)))
         .where(~_is_cc_payment())
         .order_by(Transaction.date.desc())
     )
@@ -246,7 +246,7 @@ async def get_category_summary(
         .join(Account, Transaction.account_id == Account.id)
         .where(Account.user_id == current_user.id)
         .where(Transaction.amount > 0)  # Expenses only (Plaid: positive = money out)
-        .where(Transaction.category.notin_(TRANSFER_CATEGORIES))
+        .where(or_(Transaction.category.is_(None), Transaction.category.notin_(TRANSFER_CATEGORIES)))
         .where(~_is_cc_payment())
         .group_by(Transaction.category)
         .order_by(func.sum(Transaction.amount).desc())

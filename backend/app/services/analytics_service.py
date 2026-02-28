@@ -2,6 +2,7 @@ import uuid
 from datetime import date
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.sql import expression
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
@@ -17,6 +18,7 @@ TRANSFER_CATEGORIES = {
 # Descriptions that indicate credit card payments (double-counted from checking)
 CREDIT_CARD_PAYMENT_PATTERNS = [
     "APPLECARD", "APPLE CARD", "CHASE CREDIT CRD", "CAPITAL ONE DES:",
+    "Payment Thank You", "ONLINE PAYMENT, THANK YOU", "CITI CARD ONLINE",
 ]
 
 
@@ -47,7 +49,7 @@ class AnalyticsService:
                 Transaction.date >= start_date,
                 Transaction.date <= end_date,
                 Transaction.amount > 0,
-                Transaction.category.notin_(TRANSFER_CATEGORIES),
+                or_(Transaction.category.is_(None), Transaction.category.notin_(TRANSFER_CATEGORIES)),
                 ~_is_cc_payment(),
             )
             .group_by(Transaction.category)
@@ -82,7 +84,7 @@ class AnalyticsService:
                 Account.user_id == user_id,
                 Transaction.date >= start_date,
                 Transaction.date <= end_date,
-                Transaction.category.notin_(TRANSFER_CATEGORIES),
+                or_(Transaction.category.is_(None), Transaction.category.notin_(TRANSFER_CATEGORIES)),
                 ~_is_cc_payment(),
             )
         )

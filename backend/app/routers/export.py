@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -37,7 +37,7 @@ async def export_transactions_csv(
             Account.user_id == current_user.id,
             Transaction.date >= start_date,
             Transaction.date <= end_date,
-            Transaction.category.notin_(TRANSFER_CATEGORIES),
+            or_(Transaction.category.is_(None), Transaction.category.notin_(TRANSFER_CATEGORIES)),
             ~_is_cc_payment(),
         )
         .order_by(Transaction.date.desc())
