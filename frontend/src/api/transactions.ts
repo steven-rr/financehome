@@ -1,5 +1,5 @@
 import client from './client'
-import type { CategorySummary, IncomeExpenseSummary, IncomeTransaction, PaginatedTransactions, TransactionFilters } from '../types'
+import type { CategorySummary, ExpenseTransaction, IncomeExpenseSummary, IncomeTransaction, PaginatedTransactions, TransactionFilters } from '../types'
 
 export const transactionsApi = {
   list: async (filters: TransactionFilters): Promise<PaginatedTransactions> => {
@@ -22,6 +22,15 @@ export const transactionsApi = {
     if (endDate) params.append('end_date', endDate)
 
     const { data } = await client.get(`/transactions/categories?${params.toString()}`)
+    return data
+  },
+
+  expenseTransactions: async (startDate?: string, endDate?: string): Promise<ExpenseTransaction[]> => {
+    const params = new URLSearchParams()
+    if (startDate) params.append('start_date', startDate)
+    if (endDate) params.append('end_date', endDate)
+
+    const { data } = await client.get(`/transactions/expenses?${params.toString()}`)
     return data
   },
 

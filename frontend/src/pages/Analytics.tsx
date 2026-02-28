@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { addMonths, endOfMonth, format, startOfMonth, subMonths } from 'date-fns'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -48,6 +48,22 @@ export default function Analytics() {
     queryKey: ['income-transactions', startDate, endDate],
     queryFn: () => transactionsApi.incomeTransactions(startDate, endDate),
   })
+
+  const { data: expenseTransactions = [] } = useQuery({
+    queryKey: ['expense-transactions', startDate, endDate],
+    queryFn: () => transactionsApi.expenseTransactions(startDate, endDate),
+  })
+
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(category)) next.delete(category)
+      else next.add(category)
+      return next
+    })
+  }
 
   const totalSpending = categories.reduce((sum, c) => sum + c.total, 0)
 
@@ -211,24 +227,46 @@ export default function Analytics() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {categories.map((c, i) => (
-                  <tr key={c.category} className="hover:bg-slate-50">
-                    <td className="px-6 py-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: COLORS[i % COLORS.length] }}
-                        />
-                        {c.category}
-                      </div>
-                    </td>
-                    <td className="px-6 py-3 text-sm text-right font-medium">{formatCurrency(c.total)}</td>
-                    <td className="px-6 py-3 text-sm text-right text-slate-500">{c.count}</td>
-                    <td className="px-6 py-3 text-sm text-right text-slate-500">
-                      {totalSpending > 0 ? ((c.total / totalSpending) * 100).toFixed(1) : 0}%
-                    </td>
-                  </tr>
-                ))}
+                {categories.map((c, i) => {
+                  const isExpanded = expandedCategories.has(c.category)
+                  const categoryTxns = isExpanded
+                    ? expenseTransactions.filter((t) => (t.category || 'Uncategorized') === c.category)
+                    : []
+                  return (
+                    <React.Fragment key={c.category}>
+                      <tr
+                        className="hover:bg-slate-50 cursor-pointer"
+                        onClick={() => toggleCategory(c.category)}
+                      >
+                        <td className="px-6 py-3 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-400 text-xs w-4">
+                              {isExpanded ? '\u25BC' : '\u25B6'}
+                            </span>
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                            />
+                            {c.category}
+                          </div>
+                        </td>
+                        <td className="px-6 py-3 text-sm text-right font-medium">{formatCurrency(c.total)}</td>
+                        <td className="px-6 py-3 text-sm text-right text-slate-500">{c.count}</td>
+                        <td className="px-6 py-3 text-sm text-right text-slate-500">
+                          {totalSpending > 0 ? ((c.total / totalSpending) * 100).toFixed(1) : 0}%
+                        </td>
+                      </tr>
+                      {isExpanded && categoryTxns.map((t, j) => (
+                        <tr key={j} className="bg-slate-50">
+                          <td className="pl-16 pr-6 py-2 text-xs text-slate-500">{t.date}</td>
+                          <td className="px-6 py-2 text-xs text-slate-700">{t.merchant_name || t.description}</td>
+                          <td className="px-6 py-2 text-xs text-right text-slate-700">{formatCurrency(t.amount)}</td>
+                          <td></td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  )
+                })}
               </tbody>
             </table>
           </div>

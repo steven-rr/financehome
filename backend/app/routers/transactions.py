@@ -57,6 +57,14 @@ class IncomeTransaction(BaseModel):
     amount: float
 
 
+class ExpenseTransaction(BaseModel):
+    date: date
+    description: str
+    merchant_name: str | None
+    amount: float
+    category: str
+
+
 def _base_query(user_id: uuid.UUID) -> Select:
     return (
         select(Transaction)
@@ -178,6 +186,43 @@ async def get_income_transactions(
             description=row.description,
             merchant_name=row.merchant_name,
             amount=round(abs(row.amount), 2),
+        )
+        for row in result.all()
+    ]
+
+
+@router.get("/expenses", response_model=list[ExpenseTransaction])
+async def get_expense_transactions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+):
+    from app.services.analytics_service import TRANSFER_CATEGORIES, _is_cc_payment
+
+    query = (
+        select(Transaction.date, Transaction.description, Transaction.merchant_name, Transaction.amount, Transaction.category)
+        .join(Account, Transaction.account_id == Account.id)
+        .where(Account.user_id == current_user.id)
+        .where(Transaction.amount > 0)
+        .where(Transaction.category.notin_(TRANSFER_CATEGORIES))
+        .where(~_is_cc_payment())
+        .order_by(Transaction.date.desc())
+    )
+
+    if start_date:
+        query = query.where(Transaction.date >= start_date)
+    if end_date:
+        query = query.where(Transaction.date <= end_date)
+
+    result = await db.execute(query)
+    return [
+        ExpenseTransaction(
+            date=row.date,
+            description=row.description,
+            merchant_name=row.merchant_name,
+            amount=round(row.amount, 2),
+            category=row.category or "Uncategorized",
         )
         for row in result.all()
     ]

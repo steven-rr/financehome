@@ -61,6 +61,14 @@ export interface IncomeTransaction {
   amount: number
 }
 
+export interface ExpenseTransaction {
+  date: string
+  description: string
+  merchant_name: string | null
+  amount: number
+  category: string
+}
+
 export interface Insight {
   id: string
   insight_type: string
