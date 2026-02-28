@@ -12,7 +12,7 @@ from app.models.account import Account
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.routers.auth import get_current_user
-from app.services.analytics_service import TRANSFER_CATEGORIES, _is_cc_payment
+from app.services.analytics_service import TRANSFER_CATEGORIES, _is_cc_payment, effective_category_expr
 
 router = APIRouter()
 
@@ -38,8 +38,8 @@ async def export_transactions_csv(
             Transaction.date >= start_date,
             Transaction.date <= end_date,
             or_(
-                func.coalesce(Transaction.category, Transaction.ai_category).is_(None),
-                func.coalesce(Transaction.category, Transaction.ai_category).notin_(TRANSFER_CATEGORIES),
+                effective_category_expr().is_(None),
+                effective_category_expr().notin_(TRANSFER_CATEGORIES),
             ),
             ~_is_cc_payment(),
         )
@@ -56,7 +56,7 @@ async def export_transactions_csv(
             txn.date,
             txn.merchant_name or "",
             txn.description,
-            txn.category or txn.ai_category or "Uncategorized",
+            txn.user_category or txn.category or txn.ai_category or "Uncategorized",
             round(abs(txn.amount), 2),
             "Expense" if txn.amount > 0 else "Income",
             account_name,

@@ -1,5 +1,5 @@
 import client from './client'
-import type { CategorySummary, ExpenseTransaction, IncomeExpenseSummary, IncomeTransaction, MonthlyTrend, PaginatedTransactions, TransactionFilters } from '../types'
+import type { CategorySummary, ExpenseTransaction, IncomeExpenseSummary, IncomeTransaction, MonthlyTrend, PaginatedTransactions, Transaction, TransactionFilters } from '../types'
 
 export const transactionsApi = {
   list: async (filters: TransactionFilters): Promise<PaginatedTransactions> => {
@@ -59,6 +59,11 @@ export const transactionsApi = {
 
   categorize: async (provider: string = 'gemini'): Promise<{ categorized: number; total_uncategorized: number }> => {
     const { data } = await client.post('/categorize/run', { provider })
+    return data
+  },
+
+  update: async (id: string, body: { user_category?: string | null; notes?: string | null }): Promise<Transaction> => {
+    const { data } = await client.patch(`/transactions/${id}`, body)
     return data
   },
 }

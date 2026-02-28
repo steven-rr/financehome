@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +11,7 @@ from app.models.account import Account
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.routers.auth import get_current_user
-from app.services.analytics_service import normalize_category
+from app.services.analytics_service import effective_category_expr, normalize_category
 
 router = APIRouter()
 
@@ -26,6 +26,8 @@ class TransactionResponse(BaseModel):
     category: str | None
     subcategory: str | None
     ai_category: str | None
+    user_category: str | None
+    notes: str | None
     is_pending: bool
 
     model_config = {"from_attributes": True}
@@ -66,6 +68,11 @@ class ExpenseTransaction(BaseModel):
     category: str
 
 
+class TransactionUpdate(BaseModel):
+    user_category: str | None = None
+    notes: str | None = None
+
+
 class MonthlyTrend(BaseModel):
     month: str  # "2025-01"
     income: float
@@ -102,7 +109,7 @@ async def list_transactions(
     if account_id:
         query = query.where(Transaction.account_id == account_id)
     if category:
-        query = query.where(Transaction.category == category)
+        query = query.where(effective_category_expr() == category)
     if search:
         search_pattern = f"%{search}%"
         query = query.where(
@@ -127,6 +134,8 @@ async def list_transactions(
             item.category = normalize_category(item.category)
         if item.ai_category:
             item.ai_category = normalize_category(item.ai_category)
+        if item.user_category:
+            item.user_category = normalize_category(item.user_category)
         items.append(item)
 
     return PaginatedTransactions(
@@ -136,6 +145,40 @@ async def list_transactions(
         per_page=per_page,
         pages=(total + per_page - 1) // per_page if total > 0 else 0,
     )
+
+
+@router.patch("/{transaction_id}", response_model=TransactionResponse)
+async def update_transaction(
+    transaction_id: uuid.UUID,
+    body: TransactionUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Transaction)
+        .join(Account, Transaction.account_id == Account.id)
+        .where(Account.user_id == current_user.id)
+        .where(Transaction.id == transaction_id)
+    )
+    txn = result.scalar_one_or_none()
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    update_data = body.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(txn, field, value)
+
+    await db.commit()
+    await db.refresh(txn)
+
+    item = TransactionResponse.model_validate(txn)
+    if item.category:
+        item.category = normalize_category(item.category)
+    if item.ai_category:
+        item.ai_category = normalize_category(item.ai_category)
+    if item.user_category:
+        item.user_category = normalize_category(item.user_category)
+    return item
 
 
 @router.get("/income-expenses", response_model=IncomeExpenseSummary)
@@ -152,8 +195,8 @@ async def get_income_expenses(
         .join(Account, Transaction.account_id == Account.id)
         .where(Account.user_id == current_user.id)
         .where(or_(
-            func.coalesce(Transaction.category, Transaction.ai_category).is_(None),
-            func.coalesce(Transaction.category, Transaction.ai_category).notin_(TRANSFER_CATEGORIES),
+            effective_category_expr().is_(None),
+            effective_category_expr().notin_(TRANSFER_CATEGORIES),
         ))
         .where(~_is_cc_payment())
     )
@@ -190,8 +233,8 @@ async def get_income_transactions(
         .where(Account.user_id == current_user.id)
         .where(Transaction.amount < 0)
         .where(or_(
-            func.coalesce(Transaction.category, Transaction.ai_category).is_(None),
-            func.coalesce(Transaction.category, Transaction.ai_category).notin_(TRANSFER_CATEGORIES),
+            effective_category_expr().is_(None),
+            effective_category_expr().notin_(TRANSFER_CATEGORIES),
         ))
         .where(~_is_cc_payment())
         .order_by(Transaction.date.desc())
@@ -227,14 +270,14 @@ async def get_expense_transactions(
         select(
             Transaction.date, Transaction.description, Transaction.merchant_name,
             Transaction.amount,
-            func.coalesce(Transaction.category, Transaction.ai_category).label("effective_category"),
+            effective_category_expr().label("effective_category"),
         )
         .join(Account, Transaction.account_id == Account.id)
         .where(Account.user_id == current_user.id)
         .where(Transaction.amount > 0)
         .where(or_(
-            func.coalesce(Transaction.category, Transaction.ai_category).is_(None),
-            func.coalesce(Transaction.category, Transaction.ai_category).notin_(TRANSFER_CATEGORIES),
+            effective_category_expr().is_(None),
+            effective_category_expr().notin_(TRANSFER_CATEGORIES),
         ))
         .where(~_is_cc_payment())
         .order_by(Transaction.date.desc())
@@ -267,7 +310,7 @@ async def get_category_summary(
 ):
     from app.services.analytics_service import TRANSFER_CATEGORIES, _is_cc_payment
 
-    effective_category = func.coalesce(Transaction.category, Transaction.ai_category)
+    effective_category = effective_category_expr()
     query = (
         select(
             effective_category.label("category"),
@@ -315,7 +358,7 @@ async def get_monthly_trend(
 ):
     from app.services.analytics_service import TRANSFER_CATEGORIES, _is_cc_payment
 
-    effective_category = func.coalesce(Transaction.category, Transaction.ai_category)
+    effective_category = effective_category_expr()
     cutoff = date.today().replace(day=1) - timedelta(days=(months - 1) * 31)
     cutoff = cutoff.replace(day=1)
 

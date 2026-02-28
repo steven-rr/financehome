@@ -11,6 +11,7 @@ from app.models.transaction import Transaction
 from app.services.analytics_service import (
     TRANSFER_CATEGORIES,
     _is_cc_payment,
+    effective_category_expr,
     normalize_category,
 )
 
@@ -87,9 +88,7 @@ class RecurringService:
     async def detect_recurring(
         self, user_id: uuid.UUID, db: AsyncSession
     ) -> dict:
-        effective_category = func.coalesce(
-            Transaction.category, Transaction.ai_category
-        )
+        effective_category = effective_category_expr()
         cutoff = date.today() - timedelta(days=548)  # ~18 months
 
         result = await db.execute(

@@ -21,6 +21,8 @@ export interface Transaction {
   category: string | null
   subcategory: string | null
   ai_category: string | null
+  user_category: string | null
+  notes: string | null
   is_pending: boolean
 }
 

@@ -8,8 +8,9 @@ import { exportApi } from '../api/export'
 import { transactionsApi } from '../api/transactions'
 import AIProviderToggle from '../components/AIProviderToggle'
 import ImportModal, { type AccountMappings } from '../components/ImportModal'
+import TransactionDetailModal from '../components/TransactionDetailModal'
 import { useAIProvider } from '../hooks/useAIProvider'
-import type { Account, TransactionFilters } from '../types'
+import type { Account, Transaction, TransactionFilters } from '../types'
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
@@ -28,6 +29,7 @@ export default function Transactions() {
   const { provider, setProvider } = useAIProvider()
   const [isDragging, setIsDragging] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null)
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
   const queryClient = useQueryClient()
@@ -161,6 +163,12 @@ export default function Transactions() {
           onCancel={() => setPendingFiles(null)}
         />
       )}
+      {selectedTransaction && (
+        <TransactionDetailModal
+          transaction={selectedTransaction}
+          onClose={() => setSelectedTransaction(null)}
+        />
+      )}
       {isDragging && (
         <div className="absolute inset-0 z-50 bg-emerald-50/80 dark:bg-emerald-900/30 border-2 border-dashed border-emerald-400 rounded-xl flex items-center justify-center backdrop-blur-sm">
           <div className="text-center">
@@ -289,7 +297,7 @@ export default function Transactions() {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {data.items.map((txn) => (
-                  <tr key={txn.id} className="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                  <tr key={txn.id} onClick={() => setSelectedTransaction(txn)} className="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
                     <td className="px-6 py-3 text-sm text-slate-600 dark:text-slate-400">{txn.date}</td>
                     <td className="px-6 py-3">
                       <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -300,7 +308,11 @@ export default function Transactions() {
                       )}
                     </td>
                     <td className="px-6 py-3">
-                      {txn.category ? (
+                      {txn.user_category ? (
+                        <span className="text-xs px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full">
+                          {txn.user_category}
+                        </span>
+                      ) : txn.category ? (
                         <span className="text-xs px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full">
                           {txn.category}
                         </span>

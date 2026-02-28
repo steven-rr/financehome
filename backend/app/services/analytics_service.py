@@ -59,6 +59,11 @@ def normalize_category(category: str) -> str:
     return CATEGORY_NORMALIZATION.get(category, category)
 
 
+def effective_category_expr():
+    """SQLAlchemy expression: user override > Plaid > AI category."""
+    return func.coalesce(Transaction.user_category, Transaction.category, Transaction.ai_category)
+
+
 def _is_cc_payment():
     """SQLAlchemy filter that matches credit card payment descriptions."""
     return or_(
@@ -74,7 +79,7 @@ class AnalyticsService:
         end_date: date,
         db: AsyncSession,
     ) -> list[dict]:
-        effective_category = func.coalesce(Transaction.category, Transaction.ai_category)
+        effective_category = effective_category_expr()
         result = await db.execute(
             select(
                 effective_category.label("category"),
@@ -135,8 +140,8 @@ class AnalyticsService:
                 Transaction.date >= start_date,
                 Transaction.date <= end_date,
                 or_(
-                    func.coalesce(Transaction.category, Transaction.ai_category).is_(None),
-                    func.coalesce(Transaction.category, Transaction.ai_category).notin_(TRANSFER_CATEGORIES),
+                    effective_category_expr().is_(None),
+                    effective_category_expr().notin_(TRANSFER_CATEGORIES),
                 ),
                 ~_is_cc_payment(),
             )
@@ -175,7 +180,7 @@ class AnalyticsService:
                 "amount": t.amount,
                 "merchant": t.merchant_name,
                 "description": t.description,
-                "category": normalize_category(t.category or t.ai_category or "Uncategorized"),
+                "category": normalize_category(t.user_category or t.category or t.ai_category or "Uncategorized"),
             }
             for t in transactions
         ]
