@@ -44,6 +44,12 @@ class CategorySummary(BaseModel):
     count: int
 
 
+class IncomeExpenseSummary(BaseModel):
+    income: float
+    expenses: float
+    net: float
+
+
 def _base_query(user_id: uuid.UUID) -> Select:
     return (
         select(Transaction)
@@ -97,6 +103,40 @@ async def list_transactions(
         page=page,
         per_page=per_page,
         pages=(total + per_page - 1) // per_page if total > 0 else 0,
+    )
+
+
+@router.get("/income-expenses", response_model=IncomeExpenseSummary)
+async def get_income_expenses(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+):
+    from app.services.analytics_service import TRANSFER_CATEGORIES, _is_cc_payment
+
+    query = (
+        select(Transaction.amount)
+        .join(Account, Transaction.account_id == Account.id)
+        .where(Account.user_id == current_user.id)
+        .where(Transaction.category.notin_(TRANSFER_CATEGORIES))
+        .where(~_is_cc_payment())
+    )
+
+    if start_date:
+        query = query.where(Transaction.date >= start_date)
+    if end_date:
+        query = query.where(Transaction.date <= end_date)
+
+    result = await db.execute(query)
+    amounts = [row[0] for row in result.all()]
+    expenses = sum(a for a in amounts if a > 0)
+    income = abs(sum(a for a in amounts if a < 0))
+
+    return IncomeExpenseSummary(
+        income=round(income, 2),
+        expenses=round(expenses, 2),
+        net=round(income - expenses, 2),
     )
 
 

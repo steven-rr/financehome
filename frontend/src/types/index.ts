@@ -48,6 +48,12 @@ export interface CategorySummary {
   count: number
 }
 
+export interface IncomeExpenseSummary {
+  income: number
+  expenses: number
+  net: number
+}
+
 export interface Insight {
   id: string
   insight_type: string

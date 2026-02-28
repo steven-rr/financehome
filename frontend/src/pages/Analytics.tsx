@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { format, startOfMonth, subMonths } from 'date-fns'
+import { addMonths, endOfMonth, format, startOfMonth, subMonths } from 'date-fns'
 import { useState } from 'react'
 import {
   Bar,
@@ -26,14 +26,22 @@ function formatCurrency(amount: number) {
 }
 
 export default function Analytics() {
-  const [startDate, setStartDate] = useState(
-    format(startOfMonth(subMonths(new Date(), 2)), 'yyyy-MM-dd'),
-  )
-  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [selectedMonth, setSelectedMonth] = useState(new Date())
+  const [useCustomRange, setUseCustomRange] = useState(false)
+  const [customStart, setCustomStart] = useState(format(startOfMonth(subMonths(new Date(), 2)), 'yyyy-MM-dd'))
+  const [customEnd, setCustomEnd] = useState(format(new Date(), 'yyyy-MM-dd'))
+
+  const startDate = useCustomRange ? customStart : format(startOfMonth(selectedMonth), 'yyyy-MM-dd')
+  const endDate = useCustomRange ? customEnd : format(endOfMonth(selectedMonth), 'yyyy-MM-dd')
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', startDate, endDate],
     queryFn: () => transactionsApi.categories(startDate, endDate),
+  })
+
+  const { data: incomeExpenses } = useQuery({
+    queryKey: ['income-expenses', startDate, endDate],
+    queryFn: () => transactionsApi.incomeExpenses(startDate, endDate),
   })
 
   const totalSpending = categories.reduce((sum, c) => sum + c.total, 0)
@@ -52,30 +60,88 @@ export default function Analytics() {
     <div>
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Analytics</h1>
 
-      {/* Date Range */}
+      {/* Date Filter */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
-        <div className="flex gap-4 items-end">
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Start Date</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            />
+        {useCustomRange ? (
+          <div className="flex gap-4 items-end">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Start Date</label>
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">End Date</label>
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <button
+              onClick={() => setUseCustomRange(false)}
+              className="px-3 py-2 text-sm text-slate-600 hover:text-slate-900 border border-slate-300 rounded-lg"
+            >
+              Back to monthly
+            </button>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">End Date</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            />
+        ) : (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSelectedMonth((m) => subMonths(m, 1))}
+                className="p-2 hover:bg-slate-100 rounded-lg text-slate-600"
+              >
+                &larr;
+              </button>
+              <div className="min-w-[160px] text-center">
+                <span className="text-sm font-semibold text-slate-900 block">
+                  {format(selectedMonth, 'MMMM yyyy')}
+                </span>
+                <span className="text-xs text-slate-400">
+                  {format(startOfMonth(selectedMonth), 'MMM d')} – {format(endOfMonth(selectedMonth), 'MMM d, yyyy')}
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedMonth((m) => addMonths(m, 1))}
+                className="p-2 hover:bg-slate-100 rounded-lg text-slate-600"
+              >
+                &rarr;
+              </button>
+            </div>
+            <button
+              onClick={() => setUseCustomRange(true)}
+              className="px-3 py-2 text-sm text-slate-600 hover:text-slate-900 border border-slate-300 rounded-lg"
+            >
+              Custom range
+            </button>
           </div>
-          <div className="text-sm text-slate-500">
-            Total spending: <span className="font-semibold text-slate-900">{formatCurrency(totalSpending)}</span>
-          </div>
+        )}
+      </div>
+
+      {/* Income / Expenses / Net Summary */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <p className="text-xs font-medium text-slate-500 mb-1">Income</p>
+          <p className="text-xl font-semibold text-emerald-600">
+            {formatCurrency(incomeExpenses?.income ?? 0)}
+          </p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <p className="text-xs font-medium text-slate-500 mb-1">Expenses</p>
+          <p className="text-xl font-semibold text-red-500">
+            {formatCurrency(incomeExpenses?.expenses ?? 0)}
+          </p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <p className="text-xs font-medium text-slate-500 mb-1">Net</p>
+          <p className={`text-xl font-semibold ${(incomeExpenses?.net ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+            {formatCurrency(incomeExpenses?.net ?? 0)}
+          </p>
         </div>
       </div>
 
