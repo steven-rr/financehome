@@ -12,6 +12,7 @@ from app.models.account import Account
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.routers.auth import get_current_user
+from app.services.analytics_service import TRANSFER_CATEGORIES, _is_cc_payment
 
 router = APIRouter()
 
@@ -28,7 +29,7 @@ async def export_transactions_csv(
     if not start_date:
         start_date = end_date - timedelta(days=90)
 
-    # Query transactions joined with account names
+    # Query transactions joined with account names, filtering out transfers & CC payments
     result = await db.execute(
         select(Transaction, Account.name.label("account_name"))
         .join(Account, Transaction.account_id == Account.id)
@@ -36,6 +37,8 @@ async def export_transactions_csv(
             Account.user_id == current_user.id,
             Transaction.date >= start_date,
             Transaction.date <= end_date,
+            Transaction.category.notin_(TRANSFER_CATEGORIES),
+            ~_is_cc_payment(),
         )
         .order_by(Transaction.date.desc())
     )

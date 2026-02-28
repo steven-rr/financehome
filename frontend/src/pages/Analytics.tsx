@@ -14,6 +14,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { exportApi } from '../api/export'
 import { transactionsApi } from '../api/transactions'
 
 const COLORS = [
@@ -109,6 +110,12 @@ export default function Analytics() {
             >
               Back to monthly
             </button>
+            <button
+              onClick={() => exportApi.downloadTransactions(startDate, endDate)}
+              className="px-3 py-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
+            >
+              Export CSV
+            </button>
           </div>
         ) : (
           <div className="flex items-center justify-between">
@@ -134,12 +141,20 @@ export default function Analytics() {
                 &rarr;
               </button>
             </div>
-            <button
-              onClick={() => setUseCustomRange(true)}
-              className="px-3 py-2 text-sm text-slate-600 hover:text-slate-900 border border-slate-300 rounded-lg"
-            >
-              Custom range
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setUseCustomRange(true)}
+                className="px-3 py-2 text-sm text-slate-600 hover:text-slate-900 border border-slate-300 rounded-lg"
+              >
+                Custom range
+              </button>
+              <button
+                onClick={() => exportApi.downloadTransactions(startDate, endDate)}
+                className="px-3 py-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
+              >
+                Export CSV
+              </button>
+            </div>
           </div>
         )}
       </div>
