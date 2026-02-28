@@ -19,3 +19,4 @@ class User(Base):
     plaid_links: Mapped[list["PlaidLink"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     accounts: Mapped[list["Account"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     insights: Mapped[list["InsightCache"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    budgets: Mapped[list["Budget"]] = relationship(back_populates="user", cascade="all, delete-orphan")

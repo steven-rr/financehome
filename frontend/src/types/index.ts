@@ -99,3 +99,9 @@ export interface RecurringSummary {
   total_monthly_cost: number
   items: RecurringItem[]
 }
+
+export interface Budget {
+  id: string
+  category: string
+  monthly_limit: number
+}
