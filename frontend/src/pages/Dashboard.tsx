@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { format, startOfMonth } from 'date-fns'
-import { ArrowDownRight, ArrowUpRight, DollarSign, TrendingUp, Wallet } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, ChevronDown, ChevronRight, DollarSign, Repeat, TrendingUp, Wallet } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { accountsApi } from '../api/accounts'
+import { recurringApi } from '../api/recurring'
 import { transactionsApi } from '../api/transactions'
-import type { Account, Transaction } from '../types'
+import type { Account, RecurringItem, RecurringSummary, Transaction } from '../types'
 
 function StatCard({
   title,
@@ -54,6 +56,37 @@ export default function Dashboard() {
     queryKey: ['transactions', 'recent'],
     queryFn: () => transactionsApi.list({ per_page: 10 }),
   })
+
+  const { data: recurring } = useQuery<RecurringSummary>({
+    queryKey: ['recurring'],
+    queryFn: recurringApi.getSummary,
+  })
+
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+
+  const toggleCategory = (cat: string) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(cat)) next.delete(cat)
+      else next.add(cat)
+      return next
+    })
+  }
+
+  const groupedRecurring = useMemo(() => {
+    if (!recurring?.items.length) return []
+    const groups: Record<string, { items: RecurringItem[]; total: number }> = {}
+    for (const item of recurring.items) {
+      if (!groups[item.category]) {
+        groups[item.category] = { items: [], total: 0 }
+      }
+      groups[item.category].items.push(item)
+      groups[item.category].total += item.amount
+    }
+    return Object.entries(groups)
+      .map(([category, data]) => ({ category, ...data }))
+      .sort((a, b) => b.total - a.total)
+  }, [recurring])
 
   const totalBalance = accounts.reduce((sum, a) => {
     if (a.type === 'depository' || a.type === 'investment') {
@@ -179,6 +212,77 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Monthly Autopilot */}
+      <div className="mt-6 bg-white rounded-xl border border-slate-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Repeat className="w-5 h-5 text-slate-400" />
+            <h2 className="text-lg font-semibold text-slate-900">Monthly Autopilot</h2>
+          </div>
+          {recurring && recurring.items.length > 0 && (
+            <div className="text-right">
+              <p className="text-xs text-slate-500">Estimated monthly</p>
+              <p className="text-lg font-bold text-slate-900">
+                {formatCurrency(recurring.total_monthly_cost)}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {groupedRecurring.length === 0 ? (
+          <p className="text-slate-500 text-sm">
+            Not enough transaction history to detect recurring expenses yet.
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {groupedRecurring.map((group) => {
+              const isExpanded = expandedCategories.has(group.category)
+              return (
+                <div key={group.category}>
+                  <button
+                    onClick={() => toggleCategory(group.category)}
+                    className="w-full flex items-center justify-between py-3 px-2 rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-slate-400" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-slate-400" />
+                      )}
+                      <span className="text-sm font-medium text-slate-900">{group.category}</span>
+                      <span className="text-xs text-slate-400">{group.items.length}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {formatCurrency(group.total)}
+                    </span>
+                  </button>
+                  {isExpanded && (
+                    <div className="ml-7 pl-4 border-l-2 border-slate-100 space-y-1 pb-2">
+                      {group.items.map((item, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between py-2 px-2"
+                        >
+                          <div>
+                            <p className="text-sm text-slate-700">{item.merchant}</p>
+                            <p className="text-xs text-slate-400">
+                              {item.frequency.charAt(0).toUpperCase() + item.frequency.slice(1)}
+                            </p>
+                          </div>
+                          <p className="text-sm text-slate-600">
+                            {formatCurrency(item.amount)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

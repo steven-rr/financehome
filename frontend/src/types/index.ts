@@ -77,3 +77,18 @@ export interface Insight {
   content: Record<string, unknown>
   generated_at: string
 }
+
+export interface RecurringItem {
+  merchant: string
+  amount: number
+  frequency: string
+  category: string
+  confidence: number
+  last_date: string
+  occurrence_count: number
+}
+
+export interface RecurringSummary {
+  total_monthly_cost: number
+  items: RecurringItem[]
+}
