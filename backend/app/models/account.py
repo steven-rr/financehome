@@ -23,6 +23,10 @@ class Account(Base):
     balance_available: Mapped[float | None] = mapped_column(Float, nullable=True)
     currency: Mapped[str] = mapped_column(String(10), default="USD")
     last_synced: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    balance_manual: Mapped[float | None] = mapped_column(Float, nullable=True)
+    balance_manual_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_hidden: Mapped[bool] = mapped_column(default=False)
 
     user: Mapped["User"] = relationship(back_populates="accounts")
     plaid_link: Mapped["PlaidLink"] = relationship(back_populates="accounts")

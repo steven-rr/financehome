@@ -7,8 +7,16 @@ export interface Account {
   subtype: string | null
   balance_current: number | null
   balance_available: number | null
+  balance_manual: number | null
+  balance_manual_updated_at: string | null
+  balance_effective: number | null
   currency: string
   institution_name: string | null
+  data_source: 'plaid' | 'csv' | 'manual'
+  last_synced: string | null
+  latest_transaction_date: string | null
+  display_name: string | null
+  is_hidden: boolean
 }
 
 export interface Transaction {

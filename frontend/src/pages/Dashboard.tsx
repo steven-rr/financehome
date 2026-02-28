@@ -190,16 +190,18 @@ export default function Dashboard() {
       .sort((a, b) => b.total - a.total)
   }, [recurring])
 
-  const totalBalance = accounts.reduce((sum, a) => {
+  const visibleAccounts = accounts.filter((a) => !a.is_hidden)
+
+  const totalBalance = visibleAccounts.reduce((sum, a) => {
     if (a.type === 'depository' || a.type === 'investment') {
-      return sum + (a.balance_current || 0)
+      return sum + (a.balance_effective ?? a.balance_current ?? 0)
     }
     return sum
   }, 0)
 
-  const totalDebt = accounts.reduce((sum, a) => {
+  const totalDebt = visibleAccounts.reduce((sum, a) => {
     if (a.type === 'credit' || a.type === 'loan') {
-      return sum + Math.abs(a.balance_current || 0)
+      return sum + Math.abs(a.balance_effective ?? a.balance_current ?? 0)
     }
     return sum
   }, 0)

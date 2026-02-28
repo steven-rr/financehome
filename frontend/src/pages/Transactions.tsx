@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, startOfMonth, subMonths } from 'date-fns'
 import { ChevronLeft, ChevronRight, Download, Search, Sparkles, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { accountsApi } from '../api/accounts'
 import { csvImportApi } from '../api/csvImport'
 import { exportApi } from '../api/export'
@@ -17,11 +18,16 @@ function formatCurrency(amount: number) {
 }
 
 export default function Transactions() {
-  const [filters, setFilters] = useState<TransactionFilters>({
-    start_date: format(startOfMonth(subMonths(new Date(), 1)), 'yyyy-MM-dd'),
-    end_date: format(new Date(), 'yyyy-MM-dd'),
-    page: 1,
-    per_page: 50,
+  const [searchParams] = useSearchParams()
+  const [filters, setFilters] = useState<TransactionFilters>(() => {
+    const accountId = searchParams.get('account_id')
+    return {
+      start_date: format(startOfMonth(subMonths(new Date(), 1)), 'yyyy-MM-dd'),
+      end_date: format(new Date(), 'yyyy-MM-dd'),
+      page: 1,
+      per_page: 50,
+      ...(accountId ? { account_id: accountId } : {}),
+    }
   })
   const [searchInput, setSearchInput] = useState('')
   const [importStatus, setImportStatus] = useState<string | null>(null)

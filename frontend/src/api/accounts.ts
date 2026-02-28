@@ -16,4 +16,17 @@ export const accountsApi = {
     const { data } = await client.post('/accounts/sync')
     return data
   },
+
+  update: async (
+    id: string,
+    body: { balance_manual?: number | null; display_name?: string | null; is_hidden?: boolean },
+  ): Promise<Account> => {
+    const { data } = await client.patch(`/accounts/${id}`, body)
+    return data
+  },
+
+  listAll: async (): Promise<Account[]> => {
+    const { data } = await client.get('/accounts?include_hidden=true')
+    return data
+  },
 }
