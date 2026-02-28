@@ -46,23 +46,27 @@ class AccountUpdate(BaseModel):
     is_hidden: bool | None = None
 
 
-def _build_account_response(acct: Account, latest_txn_date=None) -> AccountResponse:
+def _build_account_response(
+    acct: Account, latest_txn_date=None, txn_delta: float | None = None,
+) -> AccountResponse:
     is_manual = acct.plaid_account_id.startswith("manual-")
 
     # Determine effective balance and data source
+    # For CSV accounts with a manual anchor: anchor + delta from transactions after anchor date
     if acct.balance_manual is not None:
         if is_manual:
-            balance_effective = acct.balance_manual
+            # CSV account: manual balance is the anchor, add transaction delta
+            balance_effective = acct.balance_manual + (txn_delta or 0)
             source = "manual"
         elif acct.balance_manual_updated_at and acct.last_synced:
             if acct.balance_manual_updated_at > acct.last_synced:
-                balance_effective = acct.balance_manual
+                balance_effective = acct.balance_manual + (txn_delta or 0)
                 source = "manual"
             else:
                 balance_effective = acct.balance_current
                 source = "plaid"
         else:
-            balance_effective = acct.balance_manual
+            balance_effective = acct.balance_manual + (txn_delta or 0)
             source = "manual"
     elif acct.balance_current is not None:
         balance_effective = acct.balance_current
@@ -84,7 +88,7 @@ def _build_account_response(acct: Account, latest_txn_date=None) -> AccountRespo
         balance_manual_updated_at=(
             acct.balance_manual_updated_at.isoformat() if acct.balance_manual_updated_at else None
         ),
-        balance_effective=balance_effective,
+        balance_effective=round(balance_effective, 2) if balance_effective is not None else None,
         currency=acct.currency,
         institution_name=acct.plaid_link.institution_name if acct.plaid_link else None,
         data_source=source,
@@ -128,8 +132,27 @@ async def list_accounts(
     else:
         latest_dates = {}
 
+    # For accounts with a manual balance anchor, compute transaction delta
+    # (sum of transactions after the anchor date)
+    anchored_ids = [
+        a for a in accounts
+        if a.balance_manual is not None and a.balance_manual_updated_at is not None
+    ]
+    txn_deltas: dict[uuid.UUID, float] = {}
+    if anchored_ids:
+        for acct in anchored_ids:
+            anchor_date = acct.balance_manual_updated_at.date()
+            delta_result = await db.execute(
+                select(func.coalesce(func.sum(Transaction.amount), 0))
+                .where(
+                    Transaction.account_id == acct.id,
+                    Transaction.date > anchor_date,
+                )
+            )
+            txn_deltas[acct.id] = delta_result.scalar() or 0
+
     return [
-        _build_account_response(acct, latest_dates.get(acct.id))
+        _build_account_response(acct, latest_dates.get(acct.id), txn_deltas.get(acct.id))
         for acct in accounts
     ]
 
