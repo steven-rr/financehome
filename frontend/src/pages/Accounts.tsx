@@ -77,7 +77,6 @@ function DataSourceBadge({ source }: { source: string }) {
   const config = {
     plaid: { label: 'Plaid', colors: 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' },
     csv: { label: 'CSV', colors: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' },
-    manual: { label: 'Manual', colors: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' },
   }[source] || { label: source, colors: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400' }
 
   return (
@@ -88,13 +87,6 @@ function DataSourceBadge({ source }: { source: string }) {
 }
 
 function FreshnessText({ account }: { account: Account }) {
-  if (account.data_source === 'manual' && account.balance_manual_updated_at) {
-    return (
-      <span className="text-xs text-slate-400 dark:text-slate-500">
-        Set {formatRelativeTime(account.balance_manual_updated_at)}
-      </span>
-    )
-  }
   if (account.data_source === 'plaid' && account.last_synced) {
     return (
       <span className="text-xs text-slate-400 dark:text-slate-500">

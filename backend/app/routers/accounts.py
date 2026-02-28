@@ -51,29 +51,25 @@ def _build_account_response(
 ) -> AccountResponse:
     is_manual = acct.plaid_account_id.startswith("manual-")
 
-    # Determine effective balance and data source
-    # For CSV accounts with a manual anchor: anchor + delta from transactions after anchor date
+    # data_source reflects where the account came from, not how balance was set
+    source = "csv" if is_manual else "plaid"
+
+    # Determine effective balance
+    # For accounts with a manual anchor: anchor + delta from transactions after anchor date
     if acct.balance_manual is not None:
         if is_manual:
-            # CSV account: manual balance is the anchor, add transaction delta
             balance_effective = acct.balance_manual + (txn_delta or 0)
-            source = "manual"
         elif acct.balance_manual_updated_at and acct.last_synced:
             if acct.balance_manual_updated_at > acct.last_synced:
                 balance_effective = acct.balance_manual + (txn_delta or 0)
-                source = "manual"
             else:
                 balance_effective = acct.balance_current
-                source = "plaid"
         else:
             balance_effective = acct.balance_manual + (txn_delta or 0)
-            source = "manual"
     elif acct.balance_current is not None:
         balance_effective = acct.balance_current
-        source = "plaid"
     else:
         balance_effective = None
-        source = "csv" if is_manual else "plaid"
 
     return AccountResponse(
         id=acct.id,

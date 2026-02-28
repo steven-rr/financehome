@@ -12,7 +12,7 @@ export interface Account {
   balance_effective: number | null
   currency: string
   institution_name: string | null
-  data_source: 'plaid' | 'csv' | 'manual'
+  data_source: 'plaid' | 'csv'
   last_synced: string | null
   latest_transaction_date: string | null
   display_name: string | null
