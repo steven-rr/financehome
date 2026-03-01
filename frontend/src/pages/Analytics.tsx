@@ -78,6 +78,14 @@ export default function Analytics() {
     enabled: !useCustomRange,
   })
 
+  const { data: prevCategories = [] } = useQuery({
+    queryKey: ['categories', prevStartDate, prevEndDate],
+    queryFn: () => transactionsApi.categories(prevStartDate, prevEndDate),
+    enabled: !useCustomRange,
+  })
+
+  const prevCategoryMap = new Map(prevCategories.map((c) => [c.category, c.total]))
+
   const { data: incomeTransactions = [] } = useQuery({
     queryKey: ['income-transactions', startDate, endDate],
     queryFn: () => transactionsApi.incomeTransactions(startDate, endDate),
@@ -325,7 +333,12 @@ export default function Analytics() {
                             {c.category}
                           </div>
                         </td>
-                        <td className="px-6 py-3 text-sm text-right font-medium">{formatCurrency(c.total)}</td>
+                        <td className="px-6 py-3 text-sm text-right font-medium">
+                          <div>{formatCurrency(c.total)}</div>
+                          {!useCustomRange && (
+                            <DeltaBadge current={c.total} previous={prevCategoryMap.get(c.category)} label={prevMonthLabel} invertColors />
+                          )}
+                        </td>
                         <td className="px-6 py-3 text-sm text-right text-slate-500 dark:text-slate-400">{c.count}</td>
                         <td className="px-6 py-3 text-sm text-right text-slate-500 dark:text-slate-400">
                           {totalSpending > 0 ? ((c.total / totalSpending) * 100).toFixed(1) : 0}%
