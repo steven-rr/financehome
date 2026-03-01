@@ -23,8 +23,15 @@ class Settings(BaseSettings):
     # Anthropic Claude (paid alternative for insights + categorization)
     anthropic_api_key: str = ""
 
+    # Admin emails (comma-separated) — these users get Claude access
+    admin_emails: str = ""
+
     # Encryption key for Plaid access tokens
     encryption_key: str = ""
+
+    @property
+    def admin_emails_set(self) -> set[str]:
+        return {e.strip().lower() for e in self.admin_emails.split(",") if e.strip()}
 
     # CORS
     frontend_url: str = "http://localhost:5173"

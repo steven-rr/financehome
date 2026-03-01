@@ -102,23 +102,49 @@ def _generate_transactions(
             })
 
     for merchant, category, subcategory, min_amt, max_amt, per_month, acct_key in INCOME_MERCHANTS:
-        count = max(1, int(per_month * total_days / 30))
-        for _ in range(count):
-            day_offset = rng.randint(0, total_days)
-            txn_date = start_date + timedelta(days=day_offset)
-            amount = -round(rng.uniform(min_amt, max_amt), 2)  # negative = income
-            txn_counter += 1
-            transactions.append({
-                "account_id": account_map[acct_key],
-                "plaid_transaction_id": f"demo-txn-{txn_counter:04d}",
-                "date": txn_date,
-                "amount": amount,
-                "merchant_name": merchant,
-                "description": f"{merchant} deposit",
-                "category": category,
-                "subcategory": subcategory,
-                "is_pending": False,
-            })
+        if "Payroll" in merchant:
+            # Fixed schedule: 1st and 15th of each month for realistic paychecks
+            d = start_date.replace(day=1)
+            while d <= end_date:
+                for pay_day in (1, 15):
+                    txn_date = d.replace(day=pay_day)
+                    if start_date <= txn_date <= end_date:
+                        amount = -round(rng.uniform(min_amt, max_amt), 2)
+                        txn_counter += 1
+                        transactions.append({
+                            "account_id": account_map[acct_key],
+                            "plaid_transaction_id": f"demo-txn-{txn_counter:04d}",
+                            "date": txn_date,
+                            "amount": amount,
+                            "merchant_name": merchant,
+                            "description": f"{merchant} deposit",
+                            "category": category,
+                            "subcategory": subcategory,
+                            "is_pending": False,
+                        })
+                # Advance to next month
+                if d.month == 12:
+                    d = d.replace(year=d.year + 1, month=1)
+                else:
+                    d = d.replace(month=d.month + 1)
+        else:
+            count = max(1, int(per_month * total_days / 30))
+            for _ in range(count):
+                day_offset = rng.randint(0, total_days)
+                txn_date = start_date + timedelta(days=day_offset)
+                amount = -round(rng.uniform(min_amt, max_amt), 2)  # negative = income
+                txn_counter += 1
+                transactions.append({
+                    "account_id": account_map[acct_key],
+                    "plaid_transaction_id": f"demo-txn-{txn_counter:04d}",
+                    "date": txn_date,
+                    "amount": amount,
+                    "merchant_name": merchant,
+                    "description": f"{merchant} deposit",
+                    "category": category,
+                    "subcategory": subcategory,
+                    "is_pending": False,
+                })
 
     return transactions
 

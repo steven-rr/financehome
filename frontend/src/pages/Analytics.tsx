@@ -27,6 +27,25 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
 }
 
+function DeltaBadge({ current, previous, label, invertColors }: {
+  current: number
+  previous: number | undefined
+  label: string
+  invertColors?: boolean // true for expenses: decrease is good
+}) {
+  if (previous === undefined || previous === 0) return null
+  const pctChange = ((current - previous) / previous) * 100
+  const isPositive = pctChange > 0
+  // For income/net: increase is good (green). For expenses: decrease is good (green).
+  const isGood = invertColors ? !isPositive : isPositive
+  if (Math.abs(pctChange) < 0.5) return null
+  return (
+    <span className={`text-xs font-medium ${isGood ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
+      {isPositive ? '\u2191' : '\u2193'}{Math.abs(pctChange).toFixed(0)}% vs {label}
+    </span>
+  )
+}
+
 export default function Analytics() {
   const { isDark } = useTheme()
   const [selectedMonth, setSelectedMonth] = useState(new Date())
@@ -37,6 +56,12 @@ export default function Analytics() {
   const startDate = useCustomRange ? customStart : format(startOfMonth(selectedMonth), 'yyyy-MM-dd')
   const endDate = useCustomRange ? customEnd : format(endOfMonth(selectedMonth), 'yyyy-MM-dd')
 
+  // Previous month dates for comparison (only in monthly view)
+  const prevMonth = subMonths(selectedMonth, 1)
+  const prevStartDate = format(startOfMonth(prevMonth), 'yyyy-MM-dd')
+  const prevEndDate = format(endOfMonth(prevMonth), 'yyyy-MM-dd')
+  const prevMonthLabel = format(prevMonth, 'MMM')
+
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', startDate, endDate],
     queryFn: () => transactionsApi.categories(startDate, endDate),
@@ -45,6 +70,12 @@ export default function Analytics() {
   const { data: incomeExpenses } = useQuery({
     queryKey: ['income-expenses', startDate, endDate],
     queryFn: () => transactionsApi.incomeExpenses(startDate, endDate),
+  })
+
+  const { data: prevIncomeExpenses } = useQuery({
+    queryKey: ['income-expenses', prevStartDate, prevEndDate],
+    queryFn: () => transactionsApi.incomeExpenses(prevStartDate, prevEndDate),
+    enabled: !useCustomRange,
   })
 
   const { data: incomeTransactions = [] } = useQuery({
@@ -168,18 +199,27 @@ export default function Analytics() {
           <p className="text-xl font-semibold text-emerald-600">
             {formatCurrency(incomeExpenses?.income ?? 0)}
           </p>
+          {!useCustomRange && (
+            <DeltaBadge current={incomeExpenses?.income ?? 0} previous={prevIncomeExpenses?.income} label={prevMonthLabel} />
+          )}
         </div>
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Expenses</p>
           <p className="text-xl font-semibold text-red-500">
             {formatCurrency(incomeExpenses?.expenses ?? 0)}
           </p>
+          {!useCustomRange && (
+            <DeltaBadge current={incomeExpenses?.expenses ?? 0} previous={prevIncomeExpenses?.expenses} label={prevMonthLabel} invertColors />
+          )}
         </div>
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Net</p>
           <p className={`text-xl font-semibold ${(incomeExpenses?.net ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
             {formatCurrency(incomeExpenses?.net ?? 0)}
           </p>
+          {!useCustomRange && (
+            <DeltaBadge current={incomeExpenses?.net ?? 0} previous={prevIncomeExpenses?.net} label={prevMonthLabel} />
+          )}
         </div>
       </div>
 

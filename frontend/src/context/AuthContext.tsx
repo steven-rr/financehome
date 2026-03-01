@@ -5,6 +5,7 @@ import { authApi } from '../api/auth'
 interface AuthContextType {
   token: string | null
   isDemo: boolean
+  isAdmin: boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
   demoLogin: () => Promise<void>
@@ -20,12 +21,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isDemo, setIsDemo] = useState<boolean>(() =>
     localStorage.getItem('is_demo') === 'true',
   )
+  const [isAdmin, setIsAdmin] = useState<boolean>(false)
 
   useEffect(() => {
     if (token) {
       localStorage.setItem('access_token', token)
+      authApi.getMe().then((me) => setIsAdmin(me.is_admin ?? false)).catch(() => setIsAdmin(false))
     } else {
       localStorage.removeItem('access_token')
+      setIsAdmin(false)
     }
   }, [token])
 
@@ -56,13 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     setToken(null)
     setIsDemo(false)
+    setIsAdmin(false)
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('is_demo')
   }, [])
 
   return (
-    <AuthContext.Provider value={{ token, isDemo, login, register, demoLogin, logout }}>
+    <AuthContext.Provider value={{ token, isDemo, isAdmin, login, register, demoLogin, logout }}>
       {children}
     </AuthContext.Provider>
   )

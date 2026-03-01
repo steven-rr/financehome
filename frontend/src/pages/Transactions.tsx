@@ -10,6 +10,7 @@ import { transactionsApi } from '../api/transactions'
 import AIProviderToggle from '../components/AIProviderToggle'
 import ImportModal, { type AccountMappings } from '../components/ImportModal'
 import TransactionDetailModal from '../components/TransactionDetailModal'
+import { useAuth } from '../context/AuthContext'
 import { useAIProvider } from '../hooks/useAIProvider'
 import type { Account, Transaction, TransactionFilters } from '../types'
 
@@ -32,7 +33,9 @@ export default function Transactions() {
   const [searchInput, setSearchInput] = useState('')
   const [importStatus, setImportStatus] = useState<string | null>(null)
   const [isCategorizing, setIsCategorizing] = useState(false)
+  const { isAdmin } = useAuth()
   const { provider, setProvider } = useAIProvider()
+  const effectiveProvider = isAdmin ? provider : 'gemini'
   const [isDragging, setIsDragging] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null)
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
@@ -81,7 +84,7 @@ export default function Transactions() {
     setIsCategorizing(true)
     setImportStatus('Categorizing transactions with AI...')
     try {
-      const result = await transactionsApi.categorize(provider)
+      const result = await transactionsApi.categorize(effectiveProvider)
       if (result.categorized === 0) {
         setImportStatus('No uncategorized transactions found')
       } else {
@@ -198,7 +201,7 @@ export default function Transactions() {
             onChange={handleFileImport}
             className="hidden"
           />
-          <AIProviderToggle provider={provider} onChange={setProvider} />
+          {isAdmin && <AIProviderToggle provider={provider} onChange={setProvider} />}
           <button
             onClick={handleCategorize}
             disabled={isCategorizing}

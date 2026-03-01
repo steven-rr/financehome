@@ -14,7 +14,16 @@ from app.routers.auth import get_current_user
 from app.services.analytics_service import AnalyticsService
 from app.services.claude_service import InsightsService
 
+from app.config import settings
+
 router = APIRouter()
+
+
+def _enforce_provider(provider: str, user: User) -> str:
+    """Non-admin users are silently downgraded to Gemini."""
+    if provider == "anthropic" and user.email.lower() not in settings.admin_emails_set:
+        return "gemini"
+    return provider
 
 
 class GenerateInsightRequest(BaseModel):
@@ -52,6 +61,7 @@ async def generate_insight(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    provider = _enforce_provider(request.provider, current_user)
     service = InsightsService()
     insight = await service.generate_insight(
         user_id=current_user.id,
@@ -59,7 +69,7 @@ async def generate_insight(
         start_date=request.start_date,
         end_date=request.end_date,
         db=db,
-        provider=request.provider,
+        provider=provider,
     )
     return InsightResponse(
         id=insight.id,
@@ -103,6 +113,7 @@ async def ask_question(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    provider = _enforce_provider(request.provider, current_user)
     service = InsightsService()
     answer = await service.ask_about_finances(
         user_id=current_user.id,
@@ -110,7 +121,7 @@ async def ask_question(
         start_date=request.start_date,
         end_date=request.end_date,
         db=db,
-        provider=request.provider,
+        provider=provider,
     )
     return AskResponse(answer=answer)
 

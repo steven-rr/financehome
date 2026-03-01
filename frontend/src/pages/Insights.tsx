@@ -12,6 +12,7 @@ import {
 import { useState } from 'react'
 import { insightsApi } from '../api/insights'
 import AIProviderToggle from '../components/AIProviderToggle'
+import { useAuth } from '../context/AuthContext'
 import { useAIProvider } from '../hooks/useAIProvider'
 import type { Insight } from '../types'
 
@@ -93,7 +94,9 @@ export default function Insights() {
   )
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [question, setQuestion] = useState('')
+  const { isAdmin } = useAuth()
   const { provider, setProvider } = useAIProvider()
+  const effectiveProvider = isAdmin ? provider : 'gemini'
   const [chatAnswer, setChatAnswer] = useState('')
 
   const { data: insights = [] } = useQuery<Insight[]>({
@@ -102,11 +105,11 @@ export default function Insights() {
   })
 
   const generateMutation = useMutation({
-    mutationFn: (type: string) => insightsApi.generate(type, startDate, endDate, provider),
+    mutationFn: (type: string) => insightsApi.generate(type, startDate, endDate, effectiveProvider),
   })
 
   const askMutation = useMutation({
-    mutationFn: () => insightsApi.ask(question, startDate, endDate, provider),
+    mutationFn: () => insightsApi.ask(question, startDate, endDate, effectiveProvider),
     onSuccess: (data) => {
       setChatAnswer(data.answer)
       setQuestion('')
@@ -138,10 +141,12 @@ export default function Insights() {
               className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
             />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">AI Provider</label>
-            <AIProviderToggle provider={provider} onChange={setProvider} />
-          </div>
+          {isAdmin && (
+            <div>
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">AI Provider</label>
+              <AIProviderToggle provider={provider} onChange={setProvider} />
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {INSIGHT_TYPES.map(({ key, label, icon: Icon }) => (

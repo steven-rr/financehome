@@ -41,6 +41,7 @@ class RefreshRequest(BaseModel):
 class UserResponse(BaseModel):
     id: uuid.UUID
     email: str
+    is_admin: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -123,4 +124,6 @@ async def demo_login(db: AsyncSession = Depends(get_db)):
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
+    from app.config import settings
+    is_admin = current_user.email.lower() in settings.admin_emails_set
+    return UserResponse(id=current_user.id, email=current_user.email, is_admin=is_admin)
