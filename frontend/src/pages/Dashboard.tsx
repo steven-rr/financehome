@@ -266,7 +266,7 @@ export default function Dashboard() {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number) => formatCurrency(value)}
+                  formatter={(value?: number) => formatCurrency(value ?? 0)}
                   contentStyle={{ borderRadius: '8px', border: '1px solid', borderColor: isDark ? '#334155' : '#e2e8f0', backgroundColor: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#1e293b' }}
                 />
                 <Legend
@@ -475,7 +475,7 @@ export default function Dashboard() {
                   tickFormatter={(v) => `$${(v / 1000).toFixed(1)}k`}
                 />
                 <Tooltip
-                  formatter={(value: number) => formatCurrency(value)}
+                  formatter={(value?: number) => formatCurrency(value ?? 0)}
                   contentStyle={{ borderRadius: '8px', border: '1px solid', borderColor: isDark ? '#334155' : '#e2e8f0', backgroundColor: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#1e293b' }}
                 />
                 <Line
