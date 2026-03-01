@@ -43,7 +43,8 @@ function DeltaBadge({ current, previous, label, invertColors, showAbsolute }: {
   if (Math.abs(pctChange) < 0.5) return null
   const arrow = isPositive ? '\u2191' : '\u2193'
   const sign = isPositive ? '+' : '-'
-  const dollarPart = showAbsolute ? ` (${sign}${formatCurrency(absDiff)})` : ''
+  const dollarStr = absDiff >= 1 ? `$${Math.round(absDiff).toLocaleString()}` : '$0'
+  const dollarPart = showAbsolute ? ` (${sign}${dollarStr})` : ''
   return (
     <span className={`text-xs font-medium ${isGood ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
       {arrow}{Math.abs(pctChange).toFixed(0)}%{dollarPart} vs {label}
@@ -326,7 +327,7 @@ export default function Analytics() {
                         className="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
                         onClick={() => toggleCategory(c.category)}
                       >
-                        <td className="px-6 py-3 text-sm">
+                        <td className="px-6 py-3 text-sm text-slate-900 dark:text-slate-100">
                           <div className="flex items-center gap-2">
                             <span className="text-slate-400 text-xs w-4">
                               {isExpanded ? '\u25BC' : '\u25B6'}
@@ -338,7 +339,7 @@ export default function Analytics() {
                             {c.category}
                           </div>
                         </td>
-                        <td className="px-6 py-3 text-sm text-right font-medium">
+                        <td className="px-6 py-3 text-sm text-right font-medium text-slate-900 dark:text-slate-100">
                           <div>{formatCurrency(c.total)}</div>
                           {!useCustomRange && (
                             <DeltaBadge current={c.total} previous={prevCategoryMap.get(c.category)} label={prevMonthLabel} invertColors showAbsolute />
@@ -384,7 +385,7 @@ export default function Analytics() {
               {incomeTransactions.map((t, i) => (
                 <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800">
                   <td className="px-6 py-3 text-sm text-slate-500 dark:text-slate-400">{t.date}</td>
-                  <td className="px-6 py-3 text-sm">{t.merchant_name || t.description}</td>
+                  <td className="px-6 py-3 text-sm text-slate-900 dark:text-slate-100">{t.merchant_name || t.description}</td>
                   <td className="px-6 py-3 text-sm text-right font-medium text-emerald-600">
                     {formatCurrency(t.amount)}
                   </td>
