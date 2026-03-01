@@ -4,17 +4,24 @@ import { useEffect, useState } from 'react'
 import { transactionsApi } from '../api/transactions'
 import type { Transaction } from '../types'
 
+// Keep in sync with VALID_CATEGORIES in backend/app/services/gemini_categorizer.py
 const CATEGORIES = [
-  'Restaurants',
   'Groceries',
+  'Restaurants',
+  'Coffee & Drinks',
   'Shopping',
   'Entertainment',
+  'Subscriptions',
   'Transportation',
   'Gas & Fuel',
   'Utilities',
   'Rent & Mortgage',
+  'Insurance',
   'Healthcare',
   'Personal Care',
+  'Education',
+  'Travel',
+  'Gifts & Donations',
   'Fees & Charges',
   'Income',
   'Other',

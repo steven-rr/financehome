@@ -17,6 +17,26 @@ from app.services.analytics_service import CREDIT_CARD_PAYMENT_PATTERNS
 logger = logging.getLogger(__name__)
 
 
+async def _get_merchant_rules(user_id: uuid.UUID, db: AsyncSession) -> dict[str, str]:
+    """For each merchant, find the most recent user_category set by this user."""
+    result = await db.execute(
+        select(Transaction.merchant_name, Transaction.user_category, Transaction.date)
+        .join(Account, Transaction.account_id == Account.id)
+        .where(
+            Account.user_id == user_id,
+            Transaction.merchant_name.isnot(None),
+            Transaction.merchant_name != "",
+            Transaction.user_category.isnot(None),
+        )
+        .order_by(Transaction.date.desc())
+    )
+    rules: dict[str, str] = {}
+    for row in result.all():
+        if row.merchant_name not in rules:
+            rules[row.merchant_name] = row.user_category
+    return rules
+
+
 def _is_cc_payment_desc(description: str) -> bool:
     """Check if a transaction description matches a known CC payment pattern."""
     desc_upper = description.upper()
@@ -111,6 +131,19 @@ class TransactionCategorizer:
         cc_tagged = len(transactions) - len(need_ai)
         categorized_count = cc_tagged
         total = len(transactions)
+
+        # Apply merchant rules from user's previous manual categorizations
+        merchant_rules = await _get_merchant_rules(user_id, db)
+        still_need_ai = []
+        merchant_tagged = 0
+        for txn in need_ai:
+            if txn.merchant_name and txn.merchant_name in merchant_rules:
+                txn.ai_category = merchant_rules[txn.merchant_name]
+                merchant_tagged += 1
+            else:
+                still_need_ai.append(txn)
+        categorized_count += merchant_tagged
+        need_ai = still_need_ai
 
         use_anthropic = provider == "anthropic" and self.anthropic_client
 
