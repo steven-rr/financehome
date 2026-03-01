@@ -27,21 +27,26 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
 }
 
-function DeltaBadge({ current, previous, label, invertColors }: {
+function DeltaBadge({ current, previous, label, invertColors, showAbsolute }: {
   current: number
   previous: number | undefined
   label: string
   invertColors?: boolean // true for expenses: decrease is good
+  showAbsolute?: boolean // show dollar change alongside %
 }) {
   if (previous === undefined || previous === 0) return null
   const pctChange = ((current - previous) / previous) * 100
+  const absDiff = Math.abs(current - previous)
   const isPositive = pctChange > 0
   // For income/net: increase is good (green). For expenses: decrease is good (green).
   const isGood = invertColors ? !isPositive : isPositive
   if (Math.abs(pctChange) < 0.5) return null
+  const arrow = isPositive ? '\u2191' : '\u2193'
+  const sign = isPositive ? '+' : '-'
+  const dollarPart = showAbsolute ? ` (${sign}${formatCurrency(absDiff)})` : ''
   return (
     <span className={`text-xs font-medium ${isGood ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
-      {isPositive ? '\u2191' : '\u2193'}{Math.abs(pctChange).toFixed(0)}% vs {label}
+      {arrow}{Math.abs(pctChange).toFixed(0)}%{dollarPart} vs {label}
     </span>
   )
 }
@@ -208,7 +213,7 @@ export default function Analytics() {
             {formatCurrency(incomeExpenses?.income ?? 0)}
           </p>
           {!useCustomRange && (
-            <DeltaBadge current={incomeExpenses?.income ?? 0} previous={prevIncomeExpenses?.income} label={prevMonthLabel} />
+            <DeltaBadge current={incomeExpenses?.income ?? 0} previous={prevIncomeExpenses?.income} label={prevMonthLabel} showAbsolute />
           )}
         </div>
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
@@ -217,7 +222,7 @@ export default function Analytics() {
             {formatCurrency(incomeExpenses?.expenses ?? 0)}
           </p>
           {!useCustomRange && (
-            <DeltaBadge current={incomeExpenses?.expenses ?? 0} previous={prevIncomeExpenses?.expenses} label={prevMonthLabel} invertColors />
+            <DeltaBadge current={incomeExpenses?.expenses ?? 0} previous={prevIncomeExpenses?.expenses} label={prevMonthLabel} invertColors showAbsolute />
           )}
         </div>
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
@@ -226,7 +231,7 @@ export default function Analytics() {
             {formatCurrency(incomeExpenses?.net ?? 0)}
           </p>
           {!useCustomRange && (
-            <DeltaBadge current={incomeExpenses?.net ?? 0} previous={prevIncomeExpenses?.net} label={prevMonthLabel} />
+            <DeltaBadge current={incomeExpenses?.net ?? 0} previous={prevIncomeExpenses?.net} label={prevMonthLabel} showAbsolute />
           )}
         </div>
       </div>
@@ -336,7 +341,7 @@ export default function Analytics() {
                         <td className="px-6 py-3 text-sm text-right font-medium">
                           <div>{formatCurrency(c.total)}</div>
                           {!useCustomRange && (
-                            <DeltaBadge current={c.total} previous={prevCategoryMap.get(c.category)} label={prevMonthLabel} invertColors />
+                            <DeltaBadge current={c.total} previous={prevCategoryMap.get(c.category)} label={prevMonthLabel} invertColors showAbsolute />
                           )}
                         </td>
                         <td className="px-6 py-3 text-sm text-right text-slate-500 dark:text-slate-400">{c.count}</td>
