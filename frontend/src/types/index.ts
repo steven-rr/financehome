@@ -72,11 +72,17 @@ export interface IncomeTransaction {
 }
 
 export interface ExpenseTransaction {
+  id: string
   date: string
   description: string
   merchant_name: string | null
   amount: number
   category: string
+  subcategory: string | null
+  ai_category: string | null
+  user_category: string | null
+  notes: string | null
+  is_pending: boolean
 }
 
 export interface Insight {

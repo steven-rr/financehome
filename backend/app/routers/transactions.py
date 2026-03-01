@@ -61,11 +61,17 @@ class IncomeTransaction(BaseModel):
 
 
 class ExpenseTransaction(BaseModel):
+    id: uuid.UUID
     date: date
     description: str
     merchant_name: str | None
     amount: float
     category: str
+    subcategory: str | None = None
+    ai_category: str | None = None
+    user_category: str | None = None
+    notes: str | None = None
+    is_pending: bool = False
 
 
 class TransactionUpdate(BaseModel):
@@ -268,8 +274,10 @@ async def get_expense_transactions(
 
     query = (
         select(
-            Transaction.date, Transaction.description, Transaction.merchant_name,
-            Transaction.amount,
+            Transaction.id, Transaction.date, Transaction.description,
+            Transaction.merchant_name, Transaction.amount,
+            Transaction.subcategory, Transaction.ai_category,
+            Transaction.user_category, Transaction.notes, Transaction.is_pending,
             effective_category_expr().label("effective_category"),
         )
         .join(Account, Transaction.account_id == Account.id)
@@ -291,11 +299,17 @@ async def get_expense_transactions(
     result = await db.execute(query)
     return [
         ExpenseTransaction(
+            id=row.id,
             date=row.date,
             description=row.description,
             merchant_name=row.merchant_name,
             amount=round(row.amount, 2),
             category=normalize_category(row.effective_category or "Uncategorized"),
+            subcategory=row.subcategory,
+            ai_category=row.ai_category,
+            user_category=row.user_category,
+            notes=row.notes,
+            is_pending=row.is_pending,
         )
         for row in result.all()
     ]

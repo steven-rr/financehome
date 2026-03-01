@@ -12,6 +12,7 @@ from app.models.account import Account
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.routers.auth import get_current_user
+from app.services.gemini_categorizer import TransactionCategorizer
 from app.services.sync_service import SyncService
 
 router = APIRouter()
@@ -199,4 +200,9 @@ async def sync_all_accounts(
 ):
     sync_service = SyncService()
     synced = await sync_service.sync_all_for_user(user_id=current_user.id, db=db)
+
+    # Auto-categorize newly synced transactions
+    categorizer = TransactionCategorizer()
+    await categorizer.categorize_uncategorized(current_user.id, db)
+
     return {"synced_accounts": synced}

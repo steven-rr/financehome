@@ -14,6 +14,7 @@ from app.models.plaid_link import PlaidLink
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.routers.auth import get_current_user
+from app.services.gemini_categorizer import TransactionCategorizer
 
 router = APIRouter()
 
@@ -447,6 +448,12 @@ async def import_transactions_csv(
         imported += 1
 
     await db.commit()
+
+    # Auto-categorize newly imported transactions
+    if imported > 0:
+        categorizer = TransactionCategorizer()
+        await categorizer.categorize_uncategorized(current_user.id, db)
+
     return {"imported": imported, "skipped": skipped, "total_in_file": len(rows)}
 
 
@@ -552,6 +559,12 @@ async def import_transactions_bulk(
         })
 
     await db.commit()
+
+    # Auto-categorize newly imported transactions
+    if total_imported > 0:
+        categorizer = TransactionCategorizer()
+        await categorizer.categorize_uncategorized(current_user.id, db)
+
     return {
         "imported": total_imported,
         "skipped": total_skipped,

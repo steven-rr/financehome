@@ -54,6 +54,8 @@ export default function TransactionDetailModal({ transaction, onClose }: Props) 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
       queryClient.invalidateQueries({ queryKey: ['categories'] })
+      queryClient.invalidateQueries({ queryKey: ['expense-transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['income-expenses'] })
       onClose()
     },
   })

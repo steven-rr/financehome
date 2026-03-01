@@ -16,7 +16,9 @@ import {
 } from 'recharts'
 import { exportApi } from '../api/export'
 import { transactionsApi } from '../api/transactions'
+import TransactionDetailModal from '../components/TransactionDetailModal'
 import { useTheme } from '../context/ThemeContext'
+import type { ExpenseTransaction, Transaction } from '../types'
 
 const COLORS = [
   '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6',
@@ -112,6 +114,7 @@ export default function Analytics() {
   })
 
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const [selectedTxn, setSelectedTxn] = useState<ExpenseTransaction | null>(null)
 
   const toggleCategory = (category: string) => {
     setExpandedCategories((prev) => {
@@ -360,7 +363,11 @@ export default function Analytics() {
                         </td>
                       </tr>
                       {isExpanded && categoryTxns.map((t, j) => (
-                        <tr key={j} className="bg-slate-50 dark:bg-slate-800">
+                        <tr
+                          key={j}
+                          className="bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                          onClick={() => setSelectedTxn(t)}
+                        >
                           <td className="pl-16 pr-6 py-2 text-xs text-slate-500 dark:text-slate-400">{t.date}</td>
                           <td className="px-6 py-2 text-xs text-slate-700 dark:text-slate-300">{t.merchant_name || t.description}</td>
                           <td className="px-6 py-2 text-xs text-right text-slate-700 dark:text-slate-300">{formatCurrency(t.amount)}</td>
@@ -403,6 +410,10 @@ export default function Analytics() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {selectedTxn && (
+        <TransactionDetailModal transaction={selectedTxn as unknown as Transaction} onClose={() => setSelectedTxn(null)} />
       )}
     </div>
   )
