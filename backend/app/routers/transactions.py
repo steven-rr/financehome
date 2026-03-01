@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -173,6 +173,20 @@ async def update_transaction(
     update_data = body.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(txn, field, value)
+
+    # Retroactively apply category to all transactions from the same merchant
+    if "user_category" in update_data and update_data["user_category"] and txn.merchant_name:
+        user_account_ids = select(Account.id).where(Account.user_id == current_user.id)
+        await db.execute(
+            update(Transaction)
+            .where(
+                Transaction.account_id.in_(user_account_ids),
+                Transaction.merchant_name == txn.merchant_name,
+                Transaction.id != txn.id,
+                or_(Transaction.user_category.is_(None), Transaction.user_category == ""),
+            )
+            .values(user_category=update_data["user_category"])
+        )
 
     await db.commit()
     await db.refresh(txn)
