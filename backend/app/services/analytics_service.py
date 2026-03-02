@@ -10,8 +10,10 @@ from app.models.transaction import Transaction
 
 # Categories that are never real spending (just moving money between accounts)
 TRANSFER_CATEGORIES = {
-    "LOAN_DISBURSEMENTS", "TRANSFER_IN",
+    "LOAN_DISBURSEMENTS", "TRANSFER_IN", "LOAN_PAYMENTS",
     "Payment", "Credit", "Pago/crédito", "Payment/Credit",
+    # Normalized forms (after DB cleanup)
+    "Loan Payments", "Transfer Out", "Transfer In",
 }
 
 # Descriptions that indicate credit card payments (double-counted from checking)
@@ -43,12 +45,12 @@ CATEGORY_NORMALIZATION = {
     "Home": "Rent & Mortgage",
     "Debit": "Other",
     "Interest": "Fees & Charges",
-    "Installment": "Other",
+    "Installment": "Shopping",
     "Professional Services": "Other",
     "Health": "Healthcare",
-    # Additional Plaid categories
-    "TRANSFER_OUT": "Other",
-    "LOAN_PAYMENTS": "Other",
+    # Transfer-like categories (excluded from spending via TRANSFER_CATEGORIES)
+    "TRANSFER_OUT": "Transfer Out",
+    "LOAN_PAYMENTS": "Loan Payments",
     "INCOME": "Income",
     "Income": "Income",
 }

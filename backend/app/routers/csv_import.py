@@ -14,6 +14,7 @@ from app.models.plaid_link import PlaidLink
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.routers.auth import get_current_user
+from app.services.analytics_service import normalize_category
 from app.services.gemini_categorizer import TransactionCategorizer
 
 router = APIRouter()
@@ -441,7 +442,7 @@ async def import_transactions_csv(
             amount=row["amount"],
             merchant_name=row["merchant_name"],
             description=row["description"],
-            category=row["category"],
+            category=normalize_category(row["category"]) if row.get("category") else None,
             is_pending=False,
         ))
         existing_ids.add(txn_id)
@@ -541,7 +542,7 @@ async def import_transactions_bulk(
                 amount=row["amount"],
                 merchant_name=row["merchant_name"],
                 description=row["description"],
-                category=row["category"],
+                category=normalize_category(row["category"]) if row.get("category") else None,
                 is_pending=False,
             ))
             existing_ids.add(txn_id)

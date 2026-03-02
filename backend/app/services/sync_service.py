@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.account import Account
 from app.models.plaid_link import PlaidLink
 from app.models.transaction import Transaction
+from app.services.analytics_service import normalize_category
 from app.services.plaid_service import PlaidService
 from app.utils.encryption import decrypt_token
 
@@ -96,7 +97,7 @@ class SyncService:
 
         category = None
         if txn.personal_finance_category:
-            category = txn.personal_finance_category.primary
+            category = normalize_category(txn.personal_finance_category.primary)
 
         if existing:
             existing.amount = txn.amount

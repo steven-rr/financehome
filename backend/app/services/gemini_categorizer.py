@@ -1,18 +1,22 @@
 import asyncio
 import json
 import logging
+import re
 import uuid
 
 import anthropic
 from google import genai
 from google.genai import types
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.account import Account
 from app.models.transaction import Transaction
-from app.services.analytics_service import CREDIT_CARD_PAYMENT_PATTERNS
+from app.services.analytics_service import (
+    CREDIT_CARD_PAYMENT_PATTERNS,
+    normalize_category,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +46,41 @@ def _is_cc_payment_desc(description: str) -> bool:
     desc_upper = description.upper()
     return any(p.upper() in desc_upper for p in CREDIT_CARD_PAYMENT_PATTERNS)
 
+# Description/merchant keyword rules — checked BEFORE AI.
+# Each tuple: (description_regex | None, merchant_regex | None, category)
+KEYWORD_RULES: list[tuple[str | None, str | None, str]] = [
+    # --- Zelle P2P: parse the "for ..." field ---
+    (r"zelle.*for.*(sandra|cleaning|limpiez)", None, "Personal Care"),
+    (r"zelle.*for.*(brazas|cheesecake|restaurant|olive garden|chick.?fil|mcdonald|chipotle|p\.?f\.?\s*chang)", None, "Restaurants"),
+    (r"zelle.*for.*(starbucks|coffee|dunkin)", None, "Coffee & Drinks"),
+    (r"zelle.*for.*(grocery|groceries|hmart|h\s*mart|trader|publix|whole\s*foods)", None, "Groceries"),
+    (r"zelle.*for.*(rent|mortgage)", None, "Rent & Mortgage"),
+    (r"zelle.*for.*(garbage|trash)", None, "Utilities"),
+    # --- Merchant-pattern overrides (when Plaid gets it wrong) ---
+    (None, r"geico|progressive|allstate|castle\s*key|state\s*farm", "Insurance"),
+    (None, r"goodyear|jiffy\s*lube|autozone|pep\s*boys", "Transportation"),
+    (None, r"masterclass", "Subscriptions"),
+    (None, r"blizzard|riot|steam\s*games|nintendo|raidbots|restedxp|epic\s*games", "Entertainment"),
+    (None, r"discord|netflix|spotify|youtube\s*premium|crunchyroll|viki|hulu|apple\s*music", "Subscriptions"),
+    (None, r"apple\s*online\s*store|apple\.com/bill", "Shopping"),
+    (None, r"target\.com|target\s+\d", "Shopping"),
+    (None, r"planet\s*fitness|gym|la\s*fitness", "Personal Care"),
+    (None, r"aidvantage", "Education"),
+]
+
+
+def _apply_keyword_rules(description: str, merchant: str | None) -> str | None:
+    """Match description/merchant against keyword rules. Returns category or None."""
+    desc_lower = (description or "").lower()
+    merch_lower = (merchant or "").lower()
+    for desc_pattern, merch_pattern, category in KEYWORD_RULES:
+        if desc_pattern and re.search(desc_pattern, desc_lower):
+            return category
+        if merch_pattern and re.search(merch_pattern, merch_lower):
+            return category
+    return None
+
+
 VALID_CATEGORIES = [
     "Groceries",
     "Restaurants",
@@ -69,6 +108,20 @@ BATCH_SIZE = 50
 def _build_categorize_prompt(txn_list: list[dict]) -> str:
     return f"""Categorize each transaction into exactly one of these categories:
 {json.dumps(VALID_CATEGORIES)}
+
+Important rules:
+- For Zelle/Venmo/CashApp payments, look at the "for" field in the description to determine the actual purpose.
+  Example: "Zelle payment to X for Cheesecake Factory" → Restaurants
+  Example: "Zelle payment to X for Sandra cleaning" → Personal Care
+  If there is no "for" field or the purpose is unclear, use "Other".
+- For installment/financing payments (e.g. "MONTHLY INSTALLMENTS (X OF 12)"), categorize as Shopping (device purchase).
+- Insurance payments (GEICO, Progressive, Allstate, Castle Key) → Insurance
+- Auto repair/maintenance (Goodyear, Jiffy Lube) → Transportation
+- Online learning platforms (MasterClass, Coursera, Udemy) → Subscriptions
+- Gaming services (Blizzard, Riot, Steam, Nintendo, Epic Games) → Entertainment
+- Streaming/digital subscriptions (Discord, Netflix, Spotify, YouTube Premium, Crunchyroll) → Subscriptions
+- Student loan servicers (Aidvantage, Navient, Nelnet) → Education
+- Avoid using "Other" unless no category fits at all.
 
 Transactions:
 {json.dumps(txn_list)}
@@ -145,6 +198,19 @@ class TransactionCategorizer:
         categorized_count += merchant_tagged
         need_ai = still_need_ai
 
+        # Apply description/merchant keyword rules
+        after_keywords = []
+        keyword_tagged = 0
+        for txn in need_ai:
+            kw_cat = _apply_keyword_rules(txn.description, txn.merchant_name)
+            if kw_cat:
+                txn.ai_category = kw_cat
+                keyword_tagged += 1
+            else:
+                after_keywords.append(txn)
+        categorized_count += keyword_tagged
+        need_ai = after_keywords
+
         use_anthropic = provider == "anthropic" and self.anthropic_client
 
         for i in range(0, len(need_ai), BATCH_SIZE):
@@ -216,6 +282,96 @@ class TransactionCategorizer:
         except Exception as e:
             logger.error(f"Anthropic categorization failed: {e}")
             return ["Other"] * len(transactions)
+
+
+    async def recategorize_all(
+        self,
+        user_id: uuid.UUID,
+        db: AsyncSession,
+        provider: str = "gemini",
+        model: str | None = None,
+    ) -> dict:
+        """Re-evaluate ALL transactions (except user_category overrides).
+
+        Applies keyword rules, merchant rules, and AI to transactions
+        stuck in 'Other' or with bad/missing categories.
+        Never touches user_category.
+        """
+        result = await db.execute(
+            select(Transaction)
+            .join(Account, Transaction.account_id == Account.id)
+            .where(
+                Account.user_id == user_id,
+                or_(
+                    Transaction.user_category.is_(None),
+                    Transaction.user_category == "",
+                ),
+            )
+        )
+        transactions = result.scalars().all()
+
+        if not transactions:
+            return {"total_reviewed": 0, "updated": 0, "sent_to_ai": 0}
+
+        updated = 0
+        ai_needed = []
+        merchant_rules = await _get_merchant_rules(user_id, db)
+
+        for txn in transactions:
+            # CC payments
+            if _is_cc_payment_desc(txn.description):
+                if txn.ai_category != "Payment":
+                    txn.ai_category = "Payment"
+                    updated += 1
+                continue
+
+            # Keyword rules
+            kw_cat = _apply_keyword_rules(txn.description, txn.merchant_name)
+            if kw_cat:
+                if txn.ai_category != kw_cat:
+                    txn.ai_category = kw_cat
+                    updated += 1
+                continue
+
+            # Merchant rules
+            if txn.merchant_name and txn.merchant_name in merchant_rules:
+                rule_cat = merchant_rules[txn.merchant_name]
+                if txn.ai_category != rule_cat:
+                    txn.ai_category = rule_cat
+                    updated += 1
+                continue
+
+            # Check if effective category is "Other", None, or a raw Plaid value
+            effective = txn.category or txn.ai_category
+            normalized = normalize_category(effective) if effective else None
+            if normalized in ("Other", None, "Uncategorized"):
+                ai_needed.append(txn)
+
+        # Send remaining "Other"/uncategorized to AI
+        use_anthropic = provider == "anthropic" and self.anthropic_client
+        for i in range(0, len(ai_needed), BATCH_SIZE):
+            batch = ai_needed[i : i + BATCH_SIZE]
+
+            if use_anthropic:
+                categories = await self._categorize_batch_anthropic(batch, model=model or "claude-opus-4-20250514")
+            else:
+                categories = await self._categorize_batch_gemini(batch)
+
+            for txn, category in zip(batch, categories):
+                new_cat = category if category in VALID_CATEGORIES else "Other"
+                if new_cat != txn.ai_category:
+                    txn.ai_category = new_cat
+                    updated += 1
+
+            if not use_anthropic and i + BATCH_SIZE < len(ai_needed):
+                await asyncio.sleep(6)
+
+        await db.commit()
+        return {
+            "total_reviewed": len(transactions),
+            "updated": updated,
+            "sent_to_ai": len(ai_needed),
+        }
 
 
 # Backward compatibility alias
