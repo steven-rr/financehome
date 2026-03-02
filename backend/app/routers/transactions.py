@@ -86,6 +86,12 @@ class MonthlyTrend(BaseModel):
     net: float
 
 
+class CategoryTrendPoint(BaseModel):
+    month: str
+    category: str
+    total: float
+
+
 def _base_query(user_id: uuid.UUID) -> Select:
     return (
         select(Transaction)
@@ -426,4 +432,60 @@ async def get_monthly_trend(
             for k, v in buckets.items()
         ],
         key=lambda x: x.month,
+    )
+
+
+@router.get("/category-trends", response_model=list[CategoryTrendPoint])
+async def get_category_trends(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    months: int = Query(6, ge=1, le=24),
+):
+    from app.services.analytics_service import TRANSFER_CATEGORIES, _is_cc_payment
+
+    effective_category = effective_category_expr()
+    cutoff = date.today().replace(day=1) - timedelta(days=(months - 1) * 31)
+    cutoff = cutoff.replace(day=1)
+
+    result = await db.execute(
+        select(Transaction.date, Transaction.amount, effective_category.label("eff_cat"))
+        .join(Account, Transaction.account_id == Account.id)
+        .where(
+            Account.user_id == current_user.id,
+            Transaction.date >= cutoff,
+            Transaction.amount > 0,
+            or_(
+                effective_category.is_(None),
+                effective_category.notin_(TRANSFER_CATEGORIES),
+            ),
+            ~_is_cc_payment(),
+        )
+    )
+
+    # Bucket by (month, category)
+    buckets: dict[tuple[str, str], float] = {}
+    category_totals: dict[str, float] = {}
+    for row in result.all():
+        month_key = row.date.strftime("%Y-%m")
+        cat = normalize_category(row.eff_cat or "Uncategorized")
+        key = (month_key, cat)
+        buckets[key] = buckets.get(key, 0.0) + row.amount
+        category_totals[cat] = category_totals.get(cat, 0.0) + row.amount
+
+    # Keep top 8 categories, merge rest into "Other"
+    top_cats = sorted(category_totals.items(), key=lambda x: x[1], reverse=True)
+    top_cat_names = {c[0] for c in top_cats[:8]}
+
+    merged: dict[tuple[str, str], float] = {}
+    for (month, cat), total in buckets.items():
+        effective_cat = cat if cat in top_cat_names else "Other"
+        key = (month, effective_cat)
+        merged[key] = merged.get(key, 0.0) + total
+
+    return sorted(
+        [
+            CategoryTrendPoint(month=k[0], category=k[1], total=round(v, 2))
+            for k, v in merged.items()
+        ],
+        key=lambda x: (x.month, x.category),
     )

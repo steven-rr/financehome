@@ -101,6 +101,12 @@ export interface MonthlyTrend {
   net: number
 }
 
+export interface CategoryTrendPoint {
+  month: string
+  category: string
+  total: number
+}
+
 export interface RecurringItem {
   merchant: string
   amount: number
@@ -114,6 +120,11 @@ export interface RecurringItem {
 export interface RecurringSummary {
   total_monthly_cost: number
   items: RecurringItem[]
+}
+
+export interface SubscriptionInsights {
+  insights: string[]
+  generated_at: string
 }
 
 export interface Budget {

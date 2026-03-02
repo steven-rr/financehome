@@ -7,6 +7,8 @@ import {
   CartesianGrid,
   Cell,
   Legend,
+  Line,
+  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -18,7 +20,7 @@ import { exportApi } from '../api/export'
 import { transactionsApi } from '../api/transactions'
 import TransactionDetailModal from '../components/TransactionDetailModal'
 import { useTheme } from '../context/ThemeContext'
-import type { ExpenseTransaction, Transaction } from '../types'
+import type { CategoryTrendPoint, ExpenseTransaction, Transaction } from '../types'
 
 type MerchantGroup = {
   key: string
@@ -135,6 +137,47 @@ export default function Analytics() {
     queryKey: ['expense-transactions', startDate, endDate],
     queryFn: () => transactionsApi.expenseTransactions(startDate, endDate),
   })
+
+  const { data: categoryTrends = [] } = useQuery<CategoryTrendPoint[]>({
+    queryKey: ['category-trends'],
+    queryFn: () => transactionsApi.categoryTrends(6),
+  })
+
+  // Pivot category trends into recharts format: [{month: "Jan '26", Restaurants: 420, ...}, ...]
+  const { trendChartData, trendCategories } = React.useMemo(() => {
+    if (!categoryTrends.length) return { trendChartData: [], trendCategories: [] }
+    const months = [...new Set(categoryTrends.map((p) => p.month))].sort()
+    const cats = [...new Set(categoryTrends.map((p) => p.category))]
+    // Sort categories by total descending
+    const catTotals = new Map<string, number>()
+    for (const p of categoryTrends) {
+      catTotals.set(p.category, (catTotals.get(p.category) ?? 0) + p.total)
+    }
+    cats.sort((a, b) => (catTotals.get(b) ?? 0) - (catTotals.get(a) ?? 0))
+
+    const lookup = new Map(categoryTrends.map((p) => [`${p.month}::${p.category}`, p.total]))
+    const data = months.map((m) => {
+      const [year, mo] = m.split('-')
+      const label = new Date(Number(year), Number(mo) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+      const row: Record<string, string | number> = { month: label }
+      for (const cat of cats) {
+        row[cat] = lookup.get(`${m}::${cat}`) ?? 0
+      }
+      return row
+    })
+    return { trendChartData: data, trendCategories: cats }
+  }, [categoryTrends])
+
+  const [hiddenTrendLines, setHiddenTrendLines] = useState<Set<string>>(new Set())
+
+  const toggleTrendLine = (category: string) => {
+    setHiddenTrendLines((prev) => {
+      const next = new Set(prev)
+      if (next.has(category)) next.delete(category)
+      else next.add(category)
+      return next
+    })
+  }
 
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [expandedMerchants, setExpandedMerchants] = useState<Set<string>>(new Set())
@@ -346,6 +389,61 @@ export default function Analytics() {
               </BarChart>
             </ResponsiveContainer>
           </div>
+
+          {/* Spending Trends */}
+          {trendChartData.length > 1 && (
+            <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Spending Trends</h2>
+              <ResponsiveContainer width="100%" height={350}>
+                <LineChart data={trendChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#334155' : '#e2e8f0'} />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 12, fill: isDark ? '#94a3b8' : '#64748b' }}
+                    axisLine={{ stroke: isDark ? '#334155' : '#e2e8f0' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12, fill: isDark ? '#94a3b8' : '#64748b' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => formatCurrency(value)}
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid',
+                      borderColor: isDark ? '#334155' : '#e2e8f0',
+                      backgroundColor: isDark ? '#1e293b' : '#fff',
+                      color: isDark ? '#e2e8f0' : '#1e293b',
+                    }}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: '12px', color: isDark ? '#94a3b8' : undefined }}
+                    onClick={(e) => toggleTrendLine(e.value as string)}
+                    formatter={(value: string) => (
+                      <span style={{ color: hiddenTrendLines.has(value) ? (isDark ? '#475569' : '#cbd5e1') : undefined, cursor: 'pointer' }}>
+                        {value}
+                      </span>
+                    )}
+                  />
+                  {trendCategories.map((cat, i) => (
+                    <Line
+                      key={cat}
+                      type="monotone"
+                      dataKey={cat}
+                      stroke={COLORS[i % COLORS.length]}
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: COLORS[i % COLORS.length] }}
+                      name={cat}
+                      hide={hiddenTrendLines.has(cat)}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
 
           {/* Category Table */}
           <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">

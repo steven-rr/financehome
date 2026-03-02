@@ -6,6 +6,7 @@ import {
   LogOut,
   Moon,
   Receipt,
+  Repeat,
   Sun,
   Wallet,
 } from 'lucide-react'
@@ -18,6 +19,7 @@ const navItems = [
   { to: '/accounts', icon: Wallet, label: 'Accounts' },
   { to: '/transactions', icon: Receipt, label: 'Transactions' },
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
+  { to: '/subscriptions', icon: Repeat, label: 'Subscriptions' },
   { to: '/insights', icon: Lightbulb, label: 'Insights' },
 ]
 
