@@ -20,6 +20,29 @@ import TransactionDetailModal from '../components/TransactionDetailModal'
 import { useTheme } from '../context/ThemeContext'
 import type { ExpenseTransaction, Transaction } from '../types'
 
+type MerchantGroup = {
+  key: string
+  transactions: ExpenseTransaction[]
+  total: number
+}
+
+function groupByMerchant(txns: ExpenseTransaction[]): MerchantGroup[] {
+  const groups = new Map<string, ExpenseTransaction[]>()
+  for (const t of txns) {
+    const key = t.merchant_name || t.description
+    const existing = groups.get(key)
+    if (existing) existing.push(t)
+    else groups.set(key, [t])
+  }
+  return Array.from(groups.entries())
+    .map(([key, transactions]) => ({
+      key,
+      transactions,
+      total: transactions.reduce((sum, t) => sum + t.amount, 0),
+    }))
+    .sort((a, b) => b.total - a.total)
+}
+
 const COLORS = [
   '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6',
   '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#6366f1',
@@ -114,6 +137,7 @@ export default function Analytics() {
   })
 
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const [expandedMerchants, setExpandedMerchants] = useState<Set<string>>(new Set())
   const [selectedTxn, setSelectedTxn] = useState<ExpenseTransaction | null>(null)
 
   const toggleCategory = (category: string) => {
@@ -121,6 +145,16 @@ export default function Analytics() {
       const next = new Set(prev)
       if (next.has(category)) next.delete(category)
       else next.add(category)
+      return next
+    })
+  }
+
+  const toggleMerchant = (category: string, merchantKey: string) => {
+    const compositeKey = `${category}::${merchantKey}`
+    setExpandedMerchants((prev) => {
+      const next = new Set(prev)
+      if (next.has(compositeKey)) next.delete(compositeKey)
+      else next.add(compositeKey)
       return next
     })
   }
@@ -362,18 +396,61 @@ export default function Analytics() {
                           {totalSpending > 0 ? ((c.total / totalSpending) * 100).toFixed(1) : 0}%
                         </td>
                       </tr>
-                      {isExpanded && categoryTxns.map((t, j) => (
-                        <tr
-                          key={j}
-                          className="bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
-                          onClick={() => setSelectedTxn(t)}
-                        >
-                          <td className="pl-16 pr-6 py-2 text-xs text-slate-500 dark:text-slate-400">{t.date}</td>
-                          <td className="px-6 py-2 text-xs text-slate-700 dark:text-slate-300">{t.merchant_name || t.description}</td>
-                          <td className="px-6 py-2 text-xs text-right text-slate-700 dark:text-slate-300">{formatCurrency(t.amount)}</td>
-                          <td></td>
-                        </tr>
-                      ))}
+                      {isExpanded && groupByMerchant(categoryTxns).map((group) => {
+                        const isMerchantExpanded = expandedMerchants.has(`${c.category}::${group.key}`)
+                        if (group.transactions.length === 1) {
+                          const t = group.transactions[0]
+                          return (
+                            <tr
+                              key={group.key}
+                              className="bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                              onClick={() => setSelectedTxn(t)}
+                            >
+                              <td className="pl-14 pr-6 py-2 text-xs text-slate-500 dark:text-slate-400">{t.date}</td>
+                              <td className="px-6 py-2 text-xs text-slate-700 dark:text-slate-300">{t.merchant_name || t.description}</td>
+                              <td className="px-6 py-2 text-xs text-right text-slate-700 dark:text-slate-300">{formatCurrency(t.amount)}</td>
+                              <td></td>
+                            </tr>
+                          )
+                        }
+                        return (
+                          <React.Fragment key={group.key}>
+                            <tr
+                              className="bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                              onClick={() => toggleMerchant(c.category, group.key)}
+                            >
+                              <td className="pl-12 pr-6 py-2 text-xs text-slate-900 dark:text-slate-100">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-slate-400 text-[10px] w-3">
+                                    {isMerchantExpanded ? '\u25BC' : '\u25B6'}
+                                  </span>
+                                  <span className="font-medium">{group.key}</span>
+                                  <span className="text-slate-400 dark:text-slate-500 ml-1">
+                                    {group.transactions.length} txns
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-2 text-xs text-right font-medium text-slate-700 dark:text-slate-300">
+                                {formatCurrency(group.total)}
+                              </td>
+                              <td></td>
+                              <td></td>
+                            </tr>
+                            {isMerchantExpanded && group.transactions.map((t, j) => (
+                              <tr
+                                key={j}
+                                className="bg-slate-100/50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                                onClick={() => setSelectedTxn(t)}
+                              >
+                                <td className="pl-20 pr-6 py-1.5 text-xs text-slate-400 dark:text-slate-500">{t.date}</td>
+                                <td className="px-6 py-1.5 text-xs text-slate-600 dark:text-slate-400">{t.merchant_name || t.description}</td>
+                                <td className="px-6 py-1.5 text-xs text-right text-slate-600 dark:text-slate-400">{formatCurrency(t.amount)}</td>
+                                <td></td>
+                              </tr>
+                            ))}
+                          </React.Fragment>
+                        )
+                      })}
                     </React.Fragment>
                   )
                 })}
