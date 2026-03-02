@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, CreditCard, DollarSign, Lightbulb, Loader2, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { recurringApi } from '../api/recurring'
-import { useTheme } from '../context/ThemeContext'
 import type { RecurringItem, RecurringSummary, SubscriptionInsights } from '../types'
 
 const FREQUENCY_MULTIPLIERS: Record<string, number> = {
@@ -39,7 +38,6 @@ type CategoryGroup = {
 }
 
 export default function Subscriptions() {
-  const { isDark } = useTheme()
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
 
   const { data: recurring, isLoading } = useQuery<RecurringSummary>({
@@ -162,9 +160,9 @@ export default function Subscriptions() {
                   {/* Category header */}
                   <button
                     onClick={() => toggleCategory(group.category)}
-                    className="w-full grid grid-cols-12 gap-2 px-6 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-b border-slate-100 dark:border-slate-800"
+                    className="w-full grid grid-cols-2 sm:grid-cols-12 gap-2 px-4 sm:px-6 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-b border-slate-100 dark:border-slate-800"
                   >
-                    <div className="col-span-4 flex items-center gap-2 text-left">
+                    <div className="col-span-1 sm:col-span-4 flex items-center gap-2 text-left">
                       {isExpanded ? (
                         <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
                       ) : (
@@ -175,12 +173,12 @@ export default function Subscriptions() {
                       </span>
                       <span className="text-xs text-slate-400">{group.items.length}</span>
                     </div>
-                    <div className="col-span-2" />
-                    <div className="col-span-2" />
-                    <div className="col-span-2 text-sm font-semibold text-slate-900 dark:text-slate-100 text-right">
+                    <div className="col-span-2 hidden sm:block" />
+                    <div className="col-span-2 hidden sm:block" />
+                    <div className="col-span-1 sm:col-span-2 text-sm font-semibold text-slate-900 dark:text-slate-100 text-right">
                       {formatCurrency(group.monthlyTotal)}
                     </div>
-                    <div className="col-span-2" />
+                    <div className="col-span-2 hidden sm:block" />
                   </button>
 
                   {/* Items */}
@@ -188,29 +186,52 @@ export default function Subscriptions() {
                     group.items.map((item, i) => (
                       <div
                         key={i}
-                        className="grid grid-cols-12 gap-2 px-6 py-3 pl-12 bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800"
+                        className="px-4 sm:px-6 sm:pl-12 py-3 bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800"
                       >
-                        <div className="col-span-4">
-                          <p className="text-sm text-slate-900 dark:text-slate-100">{item.merchant}</p>
-                          <p className="text-xs text-slate-400">{item.occurrence_count} charges detected</p>
+                        {/* Mobile layout */}
+                        <div className="sm:hidden pl-6">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-slate-900 dark:text-slate-100">{item.merchant}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <FrequencyBadge frequency={item.frequency} />
+                                <span className="text-xs text-slate-400">{item.last_date}</span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                {formatCurrency(monthlyEquivalent(item))}/mo
+                              </p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                {formatCurrency(item.amount)}
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                        <div className="col-span-2 flex items-center">
-                          <span className="text-sm text-slate-700 dark:text-slate-300">
-                            {formatCurrency(item.amount)}
-                          </span>
-                        </div>
-                        <div className="col-span-2 flex items-center">
-                          <FrequencyBadge frequency={item.frequency} />
-                        </div>
-                        <div className="col-span-2 flex items-center justify-end">
-                          <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                            {formatCurrency(monthlyEquivalent(item))}
-                          </span>
-                        </div>
-                        <div className="col-span-2 flex items-center justify-end">
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            {item.last_date}
-                          </span>
+                        {/* Desktop layout */}
+                        <div className="hidden sm:grid grid-cols-12 gap-2">
+                          <div className="col-span-4">
+                            <p className="text-sm text-slate-900 dark:text-slate-100">{item.merchant}</p>
+                            <p className="text-xs text-slate-400">{item.occurrence_count} charges detected</p>
+                          </div>
+                          <div className="col-span-2 flex items-center">
+                            <span className="text-sm text-slate-700 dark:text-slate-300">
+                              {formatCurrency(item.amount)}
+                            </span>
+                          </div>
+                          <div className="col-span-2 flex items-center">
+                            <FrequencyBadge frequency={item.frequency} />
+                          </div>
+                          <div className="col-span-2 flex items-center justify-end">
+                            <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                              {formatCurrency(monthlyEquivalent(item))}
+                            </span>
+                          </div>
+                          <div className="col-span-2 flex items-center justify-end">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              {item.last_date}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     ))}

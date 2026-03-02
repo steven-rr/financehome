@@ -187,9 +187,9 @@ export default function Transactions() {
           </div>
         </div>
       )}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Transactions</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {importStatus && (
             <span className="text-sm text-slate-600 dark:text-slate-400">{importStatus}</span>
           )}
@@ -265,7 +265,7 @@ export default function Transactions() {
               ))}
             </select>
           </div>
-          <div className="flex-1 min-w-[200px]">
+          <div className="flex-1 min-w-0 sm:min-w-[200px]">
             <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Search</label>
             <div className="flex gap-2">
               <input
@@ -295,7 +295,41 @@ export default function Transactions() {
           <div className="p-8 text-center text-slate-500 dark:text-slate-400">No transactions found.</div>
         ) : (
           <>
-            <table className="w-full">
+            {/* Mobile card list */}
+            <div className="sm:hidden divide-y divide-slate-100 dark:divide-slate-800">
+              {data.items.map((txn) => (
+                <div
+                  key={txn.id}
+                  onClick={() => setSelectedTransaction(txn)}
+                  className="px-4 py-3 active:bg-slate-50 dark:active:bg-slate-800 cursor-pointer"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate mr-3">
+                      {txn.merchant_name || txn.description}
+                    </p>
+                    <p
+                      className={`text-sm font-semibold whitespace-nowrap ${
+                        txn.amount > 0 ? 'text-red-600' : 'text-emerald-600'
+                      }`}
+                    >
+                      {txn.amount > 0 ? '-' : '+'}
+                      {formatCurrency(Math.abs(txn.amount))}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">{txn.date}</span>
+                    {(txn.user_category || txn.category || txn.ai_category) && (
+                      <span className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full">
+                        {txn.user_category || txn.category || txn.ai_category}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <table className="w-full hidden sm:table">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                   <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Date</th>
@@ -349,7 +383,7 @@ export default function Transactions() {
             </table>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-t border-slate-200 dark:border-slate-700">
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Showing {(data.page - 1) * data.per_page + 1}–
                 {Math.min(data.page * data.per_page, data.total)} of {data.total}

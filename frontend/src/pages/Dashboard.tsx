@@ -302,7 +302,7 @@ export default function Dashboard() {
               </div>
 
               {addingBudget && (
-                <div className="flex items-center gap-2 mb-3 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                <div className="flex flex-wrap items-center gap-2 mb-3 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
                   <select
                     value={newBudgetCategory}
                     onChange={(e) => setNewBudgetCategory(e.target.value)}
@@ -319,7 +319,7 @@ export default function Dashboard() {
                       placeholder="0"
                       value={newBudgetLimit}
                       onChange={(e) => setNewBudgetLimit(e.target.value)}
-                      className="w-20 text-sm border border-slate-300 dark:border-slate-600 rounded-md px-2 py-1 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                      className="w-16 sm:w-20 text-sm border border-slate-300 dark:border-slate-600 rounded-md px-2 py-1 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                       min="1"
                       step="1"
                     />
@@ -401,13 +401,13 @@ export default function Dashboard() {
                                 setEditingCategory(category)
                                 setEditValue(String(limit))
                               }}
-                              className="p-0.5 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-opacity"
+                              className="p-0.5 sm:opacity-0 sm:group-hover:opacity-100 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-opacity"
                             >
                               <Pencil className="w-3 h-3" />
                             </button>
                             <button
                               onClick={() => deleteBudget.mutate(category)}
-                              className="p-0.5 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity"
+                              className="p-0.5 sm:opacity-0 sm:group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity"
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -645,7 +645,7 @@ export default function Dashboard() {
                     </span>
                   </button>
                   {isExpanded && (
-                    <div className="ml-7 pl-4 border-l-2 border-slate-100 dark:border-slate-800 space-y-1 pb-2">
+                    <div className="ml-4 sm:ml-7 pl-3 sm:pl-4 border-l-2 border-slate-100 dark:border-slate-800 space-y-1 pb-2">
                       {group.items.map((item, i) => (
                         <div
                           key={i}

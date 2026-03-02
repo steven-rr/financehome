@@ -230,7 +230,7 @@ export default function Analytics() {
       {/* Date Filter */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4 mb-6">
         {useCustomRange ? (
-          <div className="flex gap-4 items-end">
+          <div className="flex flex-wrap gap-4 items-end">
             <div>
               <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Start Date</label>
               <input
@@ -263,7 +263,7 @@ export default function Analytics() {
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSelectedMonth((m) => subMonths(m, 1))}
@@ -305,7 +305,7 @@ export default function Analytics() {
       </div>
 
       {/* Income / Expenses / Net Summary */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Income</p>
           <p className="text-xl font-semibold text-emerald-600 dark:text-emerald-400/80">
@@ -435,7 +435,7 @@ export default function Analytics() {
                     tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
                   />
                   <Tooltip
-                    formatter={(value: number) => formatCurrency(value)}
+                    formatter={(value) => formatCurrency(Number(value))}
                     contentStyle={{
                       borderRadius: '8px',
                       border: '1px solid',
@@ -478,10 +478,10 @@ export default function Analytics() {
             <table className="w-full">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                  <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Category</th>
-                  <th className="text-right px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Amount</th>
-                  <th className="text-right px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Transactions</th>
-                  <th className="text-right px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">% of Total</th>
+                  <th className="text-left px-3 sm:px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Category</th>
+                  <th className="text-right px-3 sm:px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Amount</th>
+                  <th className="text-right px-3 sm:px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase hidden sm:table-cell">Transactions</th>
+                  <th className="text-right px-3 sm:px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase hidden sm:table-cell">% of Total</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -496,7 +496,7 @@ export default function Analytics() {
                         className="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
                         onClick={() => toggleCategory(c.category)}
                       >
-                        <td className="px-6 py-3 text-sm text-slate-900 dark:text-slate-100">
+                        <td className="px-3 sm:px-6 py-3 text-sm text-slate-900 dark:text-slate-100">
                           <div className="flex items-center gap-2">
                             <span className="text-slate-400 text-xs w-4">
                               {isExpanded ? '\u25BC' : '\u25B6'}
@@ -508,14 +508,14 @@ export default function Analytics() {
                             {c.category}
                           </div>
                         </td>
-                        <td className="px-6 py-3 text-sm text-right font-medium text-slate-900 dark:text-slate-100">
+                        <td className="px-3 sm:px-6 py-3 text-sm text-right font-medium text-slate-900 dark:text-slate-100">
                           <div>{formatCurrency(c.total)}</div>
                           {!useCustomRange && (
                             <DeltaBadge current={c.total} previous={prevCategoryMap.get(c.category)} label={prevMonthLabel} invertColors />
                           )}
                         </td>
-                        <td className="px-6 py-3 text-sm text-right text-slate-500 dark:text-slate-400">{c.count}</td>
-                        <td className="px-6 py-3 text-sm text-right text-slate-500 dark:text-slate-400">
+                        <td className="px-3 sm:px-6 py-3 text-sm text-right text-slate-500 dark:text-slate-400 hidden sm:table-cell">{c.count}</td>
+                        <td className="px-3 sm:px-6 py-3 text-sm text-right text-slate-500 dark:text-slate-400 hidden sm:table-cell">
                           {totalSpending > 0 ? ((c.total / totalSpending) * 100).toFixed(1) : 0}%
                         </td>
                       </tr>
@@ -529,10 +529,10 @@ export default function Analytics() {
                               className="bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
                               onClick={() => setSelectedTxn(t)}
                             >
-                              <td className="pl-14 pr-6 py-2 text-xs text-slate-500 dark:text-slate-400">{t.date}</td>
-                              <td className="px-6 py-2 text-xs text-slate-700 dark:text-slate-300">{t.merchant_name || t.description}</td>
-                              <td className="px-6 py-2 text-xs text-right text-slate-700 dark:text-slate-300">{formatCurrency(t.amount)}</td>
-                              <td></td>
+                              <td className="pl-8 sm:pl-14 pr-3 sm:pr-6 py-2 text-xs text-slate-500 dark:text-slate-400">{t.date}</td>
+                              <td className="px-3 sm:px-6 py-2 text-xs text-slate-700 dark:text-slate-300">{t.merchant_name || t.description}</td>
+                              <td className="px-3 sm:px-6 py-2 text-xs text-right text-slate-700 dark:text-slate-300">{formatCurrency(t.amount)}</td>
+                              <td className="hidden sm:table-cell"></td>
                             </tr>
                           )
                         }
@@ -542,7 +542,7 @@ export default function Analytics() {
                               className="bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
                               onClick={() => toggleMerchant(c.category, group.key)}
                             >
-                              <td className="pl-12 pr-6 py-2 text-xs text-slate-900 dark:text-slate-100">
+                              <td className="pl-6 sm:pl-12 pr-3 sm:pr-6 py-2 text-xs text-slate-900 dark:text-slate-100">
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-slate-400 text-[10px] w-3">
                                     {isMerchantExpanded ? '\u25BC' : '\u25B6'}
@@ -553,11 +553,11 @@ export default function Analytics() {
                                   </span>
                                 </div>
                               </td>
-                              <td className="px-6 py-2 text-xs text-right font-medium text-slate-700 dark:text-slate-300">
+                              <td className="px-3 sm:px-6 py-2 text-xs text-right font-medium text-slate-700 dark:text-slate-300">
                                 {formatCurrency(group.total)}
                               </td>
-                              <td></td>
-                              <td></td>
+                              <td className="hidden sm:table-cell"></td>
+                              <td className="hidden sm:table-cell"></td>
                             </tr>
                             {isMerchantExpanded && group.transactions.map((t, j) => (
                               <tr
@@ -565,10 +565,10 @@ export default function Analytics() {
                                 className="bg-slate-100/50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
                                 onClick={() => setSelectedTxn(t)}
                               >
-                                <td className="pl-20 pr-6 py-1.5 text-xs text-slate-400 dark:text-slate-500">{t.date}</td>
-                                <td className="px-6 py-1.5 text-xs text-slate-600 dark:text-slate-400">{t.merchant_name || t.description}</td>
-                                <td className="px-6 py-1.5 text-xs text-right text-slate-600 dark:text-slate-400">{formatCurrency(t.amount)}</td>
-                                <td></td>
+                                <td className="pl-10 sm:pl-20 pr-3 sm:pr-6 py-1.5 text-xs text-slate-400 dark:text-slate-500">{t.date}</td>
+                                <td className="px-3 sm:px-6 py-1.5 text-xs text-slate-600 dark:text-slate-400">{t.merchant_name || t.description}</td>
+                                <td className="px-3 sm:px-6 py-1.5 text-xs text-right text-slate-600 dark:text-slate-400">{formatCurrency(t.amount)}</td>
+                                <td className="hidden sm:table-cell"></td>
                               </tr>
                             ))}
                           </React.Fragment>
@@ -592,17 +592,17 @@ export default function Analytics() {
           <table className="w-full">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Date</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Source</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Amount</th>
+                <th className="text-left px-3 sm:px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Date</th>
+                <th className="text-left px-3 sm:px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Source</th>
+                <th className="text-right px-3 sm:px-6 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Amount</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {incomeTransactions.map((t, i) => (
                 <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800">
-                  <td className="px-6 py-3 text-sm text-slate-500 dark:text-slate-400">{t.date}</td>
-                  <td className="px-6 py-3 text-sm text-slate-900 dark:text-slate-100">{t.merchant_name || t.description}</td>
-                  <td className="px-6 py-3 text-sm text-right font-medium text-emerald-600">
+                  <td className="px-3 sm:px-6 py-3 text-sm text-slate-500 dark:text-slate-400">{t.date}</td>
+                  <td className="px-3 sm:px-6 py-3 text-sm text-slate-900 dark:text-slate-100">{t.merchant_name || t.description}</td>
+                  <td className="px-3 sm:px-6 py-3 text-sm text-right font-medium text-emerald-600">
                     {formatCurrency(t.amount)}
                   </td>
                 </tr>
