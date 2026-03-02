@@ -169,6 +169,15 @@ export default function Analytics() {
   }, [categoryTrends])
 
   const [hiddenTrendLines, setHiddenTrendLines] = useState<Set<string>>(new Set())
+  const [trendLinesInitialized, setTrendLinesInitialized] = useState(false)
+
+  // Hide all lines by default once categories are loaded
+  React.useEffect(() => {
+    if (trendCategories.length > 0 && !trendLinesInitialized) {
+      setHiddenTrendLines(new Set(trendCategories))
+      setTrendLinesInitialized(true)
+    }
+  }, [trendCategories, trendLinesInitialized])
 
   const toggleTrendLine = (category: string) => {
     setHiddenTrendLines((prev) => {
@@ -393,7 +402,23 @@ export default function Analytics() {
           {/* Spending Trends */}
           {trendChartData.length > 1 && (
             <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Spending Trends</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Spending Trends</h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setHiddenTrendLines(new Set(trendCategories))}
+                    className="px-2 py-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-700 rounded"
+                  >
+                    Hide All
+                  </button>
+                  <button
+                    onClick={() => setHiddenTrendLines(new Set())}
+                    className="px-2 py-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-700 rounded"
+                  >
+                    Show All
+                  </button>
+                </div>
+              </div>
               <ResponsiveContainer width="100%" height={350}>
                 <LineChart data={trendChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#334155' : '#e2e8f0'} />
