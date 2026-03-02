@@ -317,27 +317,35 @@ class TransactionCategorizer:
         ai_needed = []
         merchant_rules = await _get_merchant_rules(user_id, db)
 
+        def _set_better_category(txn: Transaction, new_cat: str) -> bool:
+            """Set ai_category and clear Plaid 'Other' so new_cat wins in coalesce."""
+            changed = False
+            if txn.ai_category != new_cat:
+                txn.ai_category = new_cat
+                changed = True
+            # Clear unhelpful Plaid category so ai_category takes priority
+            if txn.category and normalize_category(txn.category) in ("Other", "Transfer Out"):
+                txn.category = None
+                changed = True
+            return changed
+
         for txn in transactions:
             # CC payments
             if _is_cc_payment_desc(txn.description):
-                if txn.ai_category != "Payment":
-                    txn.ai_category = "Payment"
+                if _set_better_category(txn, "Payment"):
                     updated += 1
                 continue
 
             # Keyword rules
             kw_cat = _apply_keyword_rules(txn.description, txn.merchant_name)
             if kw_cat:
-                if txn.ai_category != kw_cat:
-                    txn.ai_category = kw_cat
+                if _set_better_category(txn, kw_cat):
                     updated += 1
                 continue
 
             # Merchant rules
             if txn.merchant_name and txn.merchant_name in merchant_rules:
-                rule_cat = merchant_rules[txn.merchant_name]
-                if txn.ai_category != rule_cat:
-                    txn.ai_category = rule_cat
+                if _set_better_category(txn, merchant_rules[txn.merchant_name]):
                     updated += 1
                 continue
 
@@ -359,8 +367,7 @@ class TransactionCategorizer:
 
             for txn, category in zip(batch, categories):
                 new_cat = category if category in VALID_CATEGORIES else "Other"
-                if new_cat != txn.ai_category:
-                    txn.ai_category = new_cat
+                if _set_better_category(txn, new_cat):
                     updated += 1
 
             if not use_anthropic and i + BATCH_SIZE < len(ai_needed):
