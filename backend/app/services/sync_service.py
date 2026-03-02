@@ -1,16 +1,22 @@
+import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
+from app.models.budget import Budget
+from app.models.notification_preference import NotificationPreference
 from app.models.plaid_link import PlaidLink
 from app.models.transaction import Transaction
-from app.services.analytics_service import normalize_category
+from app.models.user import User
+from app.services.analytics_service import effective_category_expr, normalize_category
 from app.services.plaid_service import PlaidService
 from app.utils.encryption import decrypt_token
+
+logger = logging.getLogger(__name__)
 
 
 class SyncService:
@@ -119,6 +125,74 @@ class SyncService:
                 is_pending=txn.pending,
             )
             db.add(new_txn)
+            # Fire-and-forget alert checks for new transactions
+            try:
+                await self._check_alerts(new_txn, link.user_id, db)
+            except Exception:
+                logger.exception("Alert check failed for transaction %s", txn.transaction_id)
+
+    async def _check_alerts(self, txn: Transaction, user_id: uuid.UUID, db: AsyncSession) -> None:
+        # Only alert on expenses (positive amounts in Plaid convention)
+        if txn.amount <= 0:
+            return
+
+        result = await db.execute(
+            select(NotificationPreference).where(NotificationPreference.user_id == user_id)
+        )
+        prefs = result.scalar_one_or_none()
+        if not prefs:
+            return
+
+        user_result = await db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        if not user:
+            return
+
+        # Lazy import to avoid circular dependency
+        from app.services.email_service import EmailService
+        email_service = EmailService()
+
+        # Large transaction alert
+        if prefs.alert_large_transaction and txn.amount >= prefs.alert_large_transaction_threshold:
+            merchant = txn.merchant_name or txn.description or "Unknown"
+            await email_service.send_large_transaction_alert(
+                to=user.email,
+                amount=txn.amount,
+                merchant=merchant[:40],
+                txn_date=str(txn.date),
+            )
+
+        # Budget exceeded alert
+        if prefs.alert_budget_exceeded and txn.category:
+            budget_result = await db.execute(
+                select(Budget).where(
+                    Budget.user_id == user_id,
+                    Budget.category == txn.category,
+                )
+            )
+            budget = budget_result.scalar_one_or_none()
+            if budget:
+                # Sum this month's spending in this category
+                month_start = date.today().replace(day=1)
+                cat_expr = effective_category_expr()
+                spend_result = await db.execute(
+                    select(func.coalesce(func.sum(Transaction.amount), 0.0))
+                    .join(Account, Transaction.account_id == Account.id)
+                    .where(
+                        Account.user_id == user_id,
+                        Transaction.amount > 0,
+                        Transaction.date >= month_start,
+                        cat_expr == txn.category,
+                    )
+                )
+                month_total = float(spend_result.scalar())
+                if month_total > budget.monthly_limit:
+                    await email_service.send_budget_alert(
+                        to=user.email,
+                        category=txn.category,
+                        limit=budget.monthly_limit,
+                        actual=month_total,
+                    )
 
     async def _update_account_balances(
         self, access_token: str, link: PlaidLink, db: AsyncSession

@@ -8,6 +8,7 @@ import {
   Moon,
   Receipt,
   Repeat,
+  Settings,
   Sun,
   Wallet,
   X,
@@ -24,6 +25,7 @@ const navItems = [
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/subscriptions', icon: Repeat, label: 'Subscriptions' },
   { to: '/insights', icon: Lightbulb, label: 'Insights' },
+  { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>

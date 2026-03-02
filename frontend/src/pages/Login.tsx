@@ -1,6 +1,7 @@
-import { CreditCard, Play } from 'lucide-react'
+import { CreditCard, Github, Play } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { authApi } from '../api/auth'
 import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
@@ -10,6 +11,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [demoLoading, setDemoLoading] = useState(false)
+  const [githubLoading, setGithubLoading] = useState(false)
   const { login, register, demoLogin } = useAuth()
   const navigate = useNavigate()
 
@@ -29,6 +31,19 @@ export default function Login() {
       setError(message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleGitHubLogin = async () => {
+    setError('')
+    setGithubLoading(true)
+    try {
+      const { url } = await authApi.githubAuthorize()
+      window.location.href = url
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Something went wrong'
+      setError(message)
+      setGithubLoading(false)
     }
   }
 
@@ -125,6 +140,17 @@ export default function Login() {
               <span className="px-2 bg-white dark:bg-slate-900 text-slate-400">or</span>
             </div>
           </div>
+
+          <button
+            onClick={handleGitHubLogin}
+            disabled={githubLoading}
+            className="w-full py-2.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg text-sm font-medium hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <Github className="w-4 h-4" />
+            {githubLoading ? 'Redirecting...' : 'Continue with GitHub'}
+          </button>
+
+          <div className="my-4" />
 
           <button
             onClick={handleDemoLogin}

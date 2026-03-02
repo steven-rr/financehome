@@ -4,6 +4,7 @@ from app.models.account import Account
 from app.models.transaction import Transaction
 from app.models.insight import InsightCache
 from app.models.budget import Budget
+from app.models.notification_preference import NotificationPreference
 from app.database import Base
 
-__all__ = ["User", "PlaidLink", "Account", "Transaction", "InsightCache", "Budget", "Base"]
+__all__ = ["User", "PlaidLink", "Account", "Transaction", "InsightCache", "Budget", "NotificationPreference", "Base"]

@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.config import settings
 from app.database import Base
-from app.models import Account, Budget, InsightCache, PlaidLink, Transaction, User
+from app.models import Account, Budget, InsightCache, NotificationPreference, PlaidLink, Transaction, User
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

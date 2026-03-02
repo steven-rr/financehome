@@ -26,4 +26,14 @@ export const authApi = {
     const { data } = await client.get('/auth/me')
     return data
   },
+
+  githubAuthorize: async (): Promise<{ url: string; state: string }> => {
+    const { data } = await client.get('/auth/github/authorize')
+    return data
+  },
+
+  githubCallback: async (code: string): Promise<TokenResponse> => {
+    const { data } = await client.post('/auth/github/callback', { code })
+    return data
+  },
 }

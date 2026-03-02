@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     # Encryption key for Plaid access tokens
     encryption_key: str = ""
 
+    # Resend (email notifications)
+    resend_api_key: str = ""
+    alert_from_email: str = "FinanceHome <notifications@financehome-app.web.app>"
+
+    # Scheduler secret (authenticates Cloud Scheduler → digest endpoint)
+    scheduler_secret: str = "change-me"
+
+    # GitHub OAuth
+    github_client_id: str = ""
+    github_client_secret: str = ""
+
     @property
     def admin_emails_set(self) -> set[str]:
         return {e.strip().lower() for e in self.admin_emails.split(",") if e.strip()}

@@ -6,8 +6,10 @@ import Analytics from './pages/Analytics'
 import Dashboard from './pages/Dashboard'
 import Insights from './pages/Insights'
 import Login from './pages/Login'
+import GitHubCallback from './pages/GitHubCallback'
 import OAuthCallback from './pages/OAuthCallback'
 import Subscriptions from './pages/Subscriptions'
+import Settings from './pages/Settings'
 import Transactions from './pages/Transactions'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -20,6 +22,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/auth/github/callback" element={<GitHubCallback />} />
       <Route path="/oauth-callback" element={<ProtectedRoute><OAuthCallback /></ProtectedRoute>} />
       <Route
         path="/"
@@ -35,6 +38,7 @@ export default function App() {
         <Route path="analytics" element={<Analytics />} />
         <Route path="subscriptions" element={<Subscriptions />} />
         <Route path="insights" element={<Insights />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>
   )

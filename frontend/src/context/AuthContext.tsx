@@ -9,6 +9,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
   demoLogin: () => Promise<void>
+  githubLogin: (code: string) => Promise<void>
   logout: () => void
 }
 
@@ -57,6 +58,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsDemo(true)
   }, [])
 
+  const githubLogin = useCallback(async (code: string) => {
+    const data = await authApi.githubCallback(code)
+    setToken(data.access_token)
+    localStorage.setItem('refresh_token', data.refresh_token)
+    localStorage.setItem('is_demo', 'false')
+    setIsDemo(false)
+  }, [])
+
   const logout = useCallback(() => {
     setToken(null)
     setIsDemo(false)
@@ -67,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ token, isDemo, isAdmin, login, register, demoLogin, logout }}>
+    <AuthContext.Provider value={{ token, isDemo, isAdmin, login, register, demoLogin, githubLogin, logout }}>
       {children}
     </AuthContext.Provider>
   )
