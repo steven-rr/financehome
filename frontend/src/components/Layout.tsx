@@ -1,7 +1,6 @@
 import {
   BarChart3,
   CreditCard,
-  FileText,
   Home,
   Lightbulb,
   LogOut,
@@ -25,7 +24,6 @@ const navItems = [
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/subscriptions', icon: Repeat, label: 'Subscriptions' },
   { to: '/insights', icon: Lightbulb, label: 'Insights' },
-  { to: '/reports', icon: FileText, label: 'Reports' },
 ]
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
