@@ -41,7 +41,7 @@ class EmailService:
     async def send_digest(self, user: User, db: AsyncSession) -> bool:
         analytics = AnalyticsService()
         end = date.today()
-        start = end - timedelta(days=7)
+        start = end - timedelta(days=1)
         month_start = end.replace(day=1)
 
         income_expenses = await analytics.get_income_vs_expenses(user.id, start, end, db)
@@ -78,7 +78,7 @@ class EmailService:
             budget_status=budget_status,
         )
 
-        subject = f"Your Weekly Financial Digest — {start.strftime('%b %d')} to {end.strftime('%b %d, %Y')}"
+        subject = f"Your Daily Financial Digest — {end.strftime('%b %d, %Y')}"
         return await self.send_email(user.email, subject, html)
 
     def _render_digest(
@@ -147,13 +147,13 @@ class EmailService:
   <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;margin-top:20px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
     <!-- Header -->
     <div style="background:#059669;padding:24px 32px;">
-      <h1 style="color:#ffffff;margin:0;font-size:22px;">FinanceHome Weekly Digest</h1>
-      <p style="color:#d1fae5;margin:4px 0 0;font-size:14px;">{start.strftime('%b %d')} — {end.strftime('%b %d, %Y')}</p>
+      <h1 style="color:#ffffff;margin:0;font-size:22px;">FinanceHome Daily Digest</h1>
+      <p style="color:#d1fae5;margin:4px 0 0;font-size:14px;">{end.strftime('%A, %b %d, %Y')}</p>
     </div>
 
     <div style="padding:24px 32px;">
       <!-- Summary -->
-      <h2 style="color:#059669;font-size:18px;margin:0 0 12px;">Weekly Summary</h2>
+      <h2 style="color:#059669;font-size:18px;margin:0 0 12px;">Daily Summary</h2>
       <table style="width:100%;border-collapse:collapse;font-size:14px;">
         <tr>
           <td style="padding:10px 12px;background:#f0fdf4;border-radius:6px 0 0 6px;"><strong>Income</strong></td>
@@ -200,7 +200,7 @@ class EmailService:
       </div>
 
       <p style="color:#94a3b8;font-size:12px;margin-top:24px;text-align:center;">
-        You're receiving this because you have email digests enabled.
+        You're receiving this because you have daily digests enabled.
         Manage your preferences in Settings.
       </p>
     </div>

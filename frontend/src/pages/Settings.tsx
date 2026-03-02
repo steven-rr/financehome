@@ -3,7 +3,6 @@ import { Bell, CheckCircle, Mail, Send, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { notificationsApi, type NotificationPreferences } from '../api/notifications'
 
-const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
 function Toggle({
   enabled,
@@ -82,40 +81,21 @@ export default function Settings() {
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-6 mb-6">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
           <Mail className="w-5 h-5 text-emerald-600" />
-          Weekly Email Digest
+          Daily Email Digest
         </h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
-          Get a summary of your income, expenses, top categories, and budget status delivered to your inbox.
+          Get a daily summary of your spending, top categories, and budget status delivered to your inbox.
         </p>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Enable weekly digest</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Sent once a week with your financial summary</p>
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Enable daily digest</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Sent every day with your financial summary</p>
             </div>
             <Toggle enabled={prefs.digest_enabled} onChange={(v) => update('digest_enabled', v)} />
           </div>
 
-          {prefs.digest_enabled && (
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Delivery day</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Which day to receive your digest</p>
-              </div>
-              <select
-                value={prefs.digest_day}
-                onChange={(e) => update('digest_day', e.target.value)}
-                className="px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              >
-                {DAYS.map((d) => (
-                  <option key={d} value={d}>
-                    {d.charAt(0).toUpperCase() + d.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
       </div>
 

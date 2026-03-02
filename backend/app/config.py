@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     # Resend (email notifications)
     resend_api_key: str = ""
-    alert_from_email: str = "FinanceHome <notifications@financehome-app.web.app>"
+    alert_from_email: str = "FinanceHome <onboarding@resend.dev>"
 
     # Scheduler secret (authenticates Cloud Scheduler → digest endpoint)
     scheduler_secret: str = "change-me"
