@@ -6,6 +6,7 @@ import Analytics from './pages/Analytics'
 import Dashboard from './pages/Dashboard'
 import Insights from './pages/Insights'
 import Login from './pages/Login'
+import Reports from './pages/Reports'
 import OAuthCallback from './pages/OAuthCallback'
 import Subscriptions from './pages/Subscriptions'
 import Transactions from './pages/Transactions'
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="analytics" element={<Analytics />} />
         <Route path="subscriptions" element={<Subscriptions />} />
         <Route path="insights" element={<Insights />} />
+        <Route path="reports" element={<Reports />} />
       </Route>
     </Routes>
   )
