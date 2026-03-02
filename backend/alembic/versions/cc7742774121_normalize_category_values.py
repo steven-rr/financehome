@@ -160,7 +160,14 @@ def upgrade() -> None:
     )
 
 
-    # 4. Clear unhelpful Plaid "Transfer Out" on Zelle txns where we have a better ai_category
+    # 4. Clear unhelpful Plaid categories when we have a better ai_category
+    #    (Plaid "Other"/"Transfer Out" take priority over ai_category in coalesce chain)
+    op.execute(
+        "UPDATE transactions SET category = NULL "
+        "WHERE category = 'Other' "
+        "AND ai_category IS NOT NULL AND ai_category != 'Other' "
+        "AND (user_category IS NULL OR user_category = '')"
+    )
     op.execute(
         "UPDATE transactions SET category = NULL "
         "WHERE description ILIKE '%zelle%' "
