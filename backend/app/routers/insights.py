@@ -2,19 +2,19 @@ import json
 import uuid
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.models.insight import InsightCache
 from app.models.user import User
+from app.rate_limit import limiter
 from app.routers.auth import get_current_user
 from app.services.analytics_service import AnalyticsService
 from app.services.claude_service import InsightsService
-
-from app.config import settings
 
 router = APIRouter()
 
@@ -56,18 +56,20 @@ class AskResponse(BaseModel):
 
 
 @router.post("/generate", response_model=InsightResponse)
+@limiter.limit("10/minute")
 async def generate_insight(
-    request: GenerateInsightRequest,
+    request: Request,
+    body: GenerateInsightRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    provider = _enforce_provider(request.provider, current_user)
+    provider = _enforce_provider(body.provider, current_user)
     service = InsightsService()
     insight = await service.generate_insight(
         user_id=current_user.id,
-        insight_type=request.insight_type,
-        start_date=request.start_date,
-        end_date=request.end_date,
+        insight_type=body.insight_type,
+        start_date=body.start_date,
+        end_date=body.end_date,
         db=db,
         provider=provider,
     )
@@ -108,18 +110,20 @@ async def list_insights(
 
 
 @router.post("/ask", response_model=AskResponse)
+@limiter.limit("10/minute")
 async def ask_question(
-    request: AskRequest,
+    request: Request,
+    body: AskRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    provider = _enforce_provider(request.provider, current_user)
+    provider = _enforce_provider(body.provider, current_user)
     service = InsightsService()
     answer = await service.ask_about_finances(
         user_id=current_user.id,
-        question=request.question,
-        start_date=request.start_date,
-        end_date=request.end_date,
+        question=body.question,
+        start_date=body.start_date,
+        end_date=body.end_date,
         db=db,
         provider=provider,
     )
@@ -132,7 +136,9 @@ class SpendingInsightsResponse(BaseModel):
 
 
 @router.get("/spending-insights", response_model=SpendingInsightsResponse)
+@limiter.limit("10/minute")
 async def get_spending_insights(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

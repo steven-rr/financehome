@@ -2,7 +2,7 @@ import secrets
 import uuid
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
+from app.rate_limit import limiter
 from app.utils.security import (
     create_access_token,
     create_refresh_token,
@@ -71,12 +72,13 @@ async def get_current_user(
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == request.email))
+@limiter.limit("5/minute")
+async def register(request: Request, body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == body.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
-    user = User(email=request.email, password_hash=hash_password(request.password))
+    user = User(email=body.email, password_hash=hash_password(body.password))
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -87,10 +89,11 @@ async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db))
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == request.email))
+@limiter.limit("10/minute")
+async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
-    if not user or not user.password_hash or not verify_password(request.password, user.password_hash):
+    if not user or not user.password_hash or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
     access_token = create_access_token({"sub": str(user.id)})
@@ -99,8 +102,9 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(request: RefreshRequest, db: AsyncSession = Depends(get_db)):
-    payload = decode_token(request.refresh_token)
+@limiter.limit("30/minute")
+async def refresh(request: Request, body: RefreshRequest, db: AsyncSession = Depends(get_db)):
+    payload = decode_token(body.refresh_token)
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
@@ -116,7 +120,8 @@ async def refresh(request: RefreshRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/demo", response_model=TokenResponse)
-async def demo_login(db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def demo_login(request: Request, db: AsyncSession = Depends(get_db)):
     from app.services.demo_seed import seed_demo_data
 
     user = await seed_demo_data(db)
@@ -139,7 +144,8 @@ class GitHubCallbackRequest(BaseModel):
 
 
 @router.get("/github/authorize")
-async def github_authorize():
+@limiter.limit("10/minute")
+async def github_authorize(request: Request):
     if not settings.github_client_id:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="GitHub OAuth not configured")
     state = secrets.token_urlsafe(32)
@@ -155,7 +161,8 @@ async def github_authorize():
 
 
 @router.post("/github/callback", response_model=TokenResponse)
-async def github_callback(request: GitHubCallbackRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def github_callback(request: Request, body: GitHubCallbackRequest, db: AsyncSession = Depends(get_db)):
     if not settings.github_client_id or not settings.github_client_secret:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="GitHub OAuth not configured")
 
@@ -166,7 +173,7 @@ async def github_callback(request: GitHubCallbackRequest, db: AsyncSession = Dep
             json={
                 "client_id": settings.github_client_id,
                 "client_secret": settings.github_client_secret,
-                "code": request.code,
+                "code": body.code,
             },
             headers={"Accept": "application/json"},
         )

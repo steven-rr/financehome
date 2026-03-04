@@ -4,7 +4,7 @@ import json
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +13,7 @@ from app.models.account import Account
 from app.models.plaid_link import PlaidLink
 from app.models.transaction import Transaction
 from app.models.user import User
+from app.rate_limit import limiter
 from app.routers.auth import get_current_user
 from app.services.analytics_service import normalize_category
 from app.services.gemini_categorizer import TransactionCategorizer
@@ -401,7 +402,9 @@ async def _get_or_create_manual_account(
 
 
 @router.post("/transactions")
+@limiter.limit("10/minute")
 async def import_transactions_csv(
+    request: Request,
     file: UploadFile = File(...),
     account_name: str = Form(default="Apple Card"),
     current_user: User = Depends(get_current_user),
@@ -459,7 +462,9 @@ async def import_transactions_csv(
 
 
 @router.post("/transactions/bulk")
+@limiter.limit("5/minute")
 async def import_transactions_bulk(
+    request: Request,
     files: list[UploadFile] = File(...),
     account_mappings: str = Form(default="{}"),
     current_user: User = Depends(get_current_user),

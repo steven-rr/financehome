@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.user import User
+from app.rate_limit import limiter
 from app.routers.auth import get_current_user
 from app.services.plaid_service import PlaidService
 
@@ -24,7 +25,9 @@ class ExchangeTokenResponse(BaseModel):
 
 
 @router.post("/link-token", response_model=LinkTokenResponse)
+@limiter.limit("10/minute")
 async def create_link_token(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -34,14 +37,16 @@ async def create_link_token(
 
 
 @router.post("/exchange-token", response_model=ExchangeTokenResponse)
+@limiter.limit("5/minute")
 async def exchange_public_token(
-    request: ExchangeTokenRequest,
+    request: Request,
+    body: ExchangeTokenRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     plaid_service = PlaidService()
     result = await plaid_service.exchange_and_store(
-        public_token=request.public_token,
+        public_token=body.public_token,
         user_id=current_user.id,
         db=db,
     )
@@ -52,6 +57,7 @@ async def exchange_public_token(
 
 
 @router.post("/webhook")
+@limiter.limit("20/minute")
 async def plaid_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     body = await request.json()
     webhook_type = body.get("webhook_type")

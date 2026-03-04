@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +7,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.notification_preference import NotificationPreference
 from app.models.user import User
+from app.rate_limit import limiter
 from app.routers.auth import get_current_user
 from app.services.email_service import EmailService
 
@@ -78,7 +79,9 @@ async def update_preferences(
 
 
 @router.post("/test-digest")
+@limiter.limit("3/minute")
 async def test_digest(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -93,7 +96,9 @@ async def test_digest(
 
 
 @router.post("/digest")
+@limiter.limit("5/minute")
 async def trigger_digest(
+    request: Request,
     x_scheduler_secret: str = Header(...),
     db: AsyncSession = Depends(get_db),
 ):
