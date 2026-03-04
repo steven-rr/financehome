@@ -6,7 +6,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.rate_limit import limiter
-from app.routers import accounts, auth, budgets, categorize, csv_import, export, insights, notifications, plaid, recurring, transactions
+from app.routers import accounts, auth, budgets, categorize, csv_import, export, insights, mfa, notifications, plaid, recurring, transactions
 
 app = FastAPI(title="FinanceHome API", version="1.0.0")
 
@@ -22,6 +22,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(mfa.router, prefix="/api/auth/mfa", tags=["mfa"])
 app.include_router(plaid.router, prefix="/api/plaid", tags=["plaid"])
 app.include_router(accounts.router, prefix="/api/accounts", tags=["accounts"])
 app.include_router(transactions.router, prefix="/api/transactions", tags=["transactions"])

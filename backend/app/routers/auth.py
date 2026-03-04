@@ -13,6 +13,7 @@ from app.models.user import User
 from app.rate_limit import limiter
 from app.utils.security import (
     create_access_token,
+    create_mfa_pending_token,
     create_refresh_token,
     decode_token,
     hash_password,
@@ -88,7 +89,7 @@ async def register(request: Request, body: RegisterRequest, db: AsyncSession = D
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login")
 @limiter.limit("10/minute")
 async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == body.email))
@@ -96,9 +97,13 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends
     if not user or not user.password_hash or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
+    if user.mfa_enabled:
+        mfa_token = create_mfa_pending_token({"sub": str(user.id)})
+        return {"mfa_required": True, "mfa_token": mfa_token, "token_type": "bearer"}
+
     access_token = create_access_token({"sub": str(user.id)})
     refresh_token = create_refresh_token({"sub": str(user.id)})
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "mfa_required": False}
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -160,7 +165,7 @@ async def github_authorize(request: Request):
     return {"url": url, "state": state}
 
 
-@router.post("/github/callback", response_model=TokenResponse)
+@router.post("/github/callback")
 @limiter.limit("10/minute")
 async def github_callback(request: Request, body: GitHubCallbackRequest, db: AsyncSession = Depends(get_db)):
     if not settings.github_client_id or not settings.github_client_secret:
@@ -232,6 +237,10 @@ async def github_callback(request: Request, body: GitHubCallbackRequest, db: Asy
         await db.commit()
         await db.refresh(user)
 
+    if user.mfa_enabled:
+        mfa_token = create_mfa_pending_token({"sub": str(user.id)})
+        return {"mfa_required": True, "mfa_token": mfa_token, "token_type": "bearer"}
+
     access_token = create_access_token({"sub": str(user.id)})
     refresh_token = create_refresh_token({"sub": str(user.id)})
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "mfa_required": False}
