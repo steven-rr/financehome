@@ -30,3 +30,4 @@ class User(Base):
     notification_preferences: Mapped["NotificationPreference"] = relationship(
         back_populates="user", cascade="all, delete-orphan", uselist=False
     )
+    consent_records: Mapped[list["ConsentRecord"]] = relationship(back_populates="user", cascade="all, delete-orphan")

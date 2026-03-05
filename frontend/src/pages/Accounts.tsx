@@ -15,7 +15,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePlaidLink } from 'react-plaid-link'
 import { useNavigate } from 'react-router-dom'
 import { accountsApi } from '../api/accounts'
+import { consentApi } from '../api/consent'
 import { plaidApi } from '../api/plaid'
+import ConsentModal, { CONSENT_TYPE } from '../components/ConsentModal'
 import type { Account } from '../types'
 
 function formatCurrency(amount: number) {
@@ -38,6 +40,8 @@ function formatRelativeTime(isoString: string) {
 
 function PlaidLinkButton() {
   const [linkToken, setLinkToken] = useState<string | null>(null)
+  const [showConsent, setShowConsent] = useState(false)
+  const [hasConsent, setHasConsent] = useState<boolean | null>(null)
   const queryClient = useQueryClient()
 
   useEffect(() => {
@@ -45,6 +49,7 @@ function PlaidLinkButton() {
       setLinkToken(token)
       localStorage.setItem('plaid_link_token', token)
     })
+    consentApi.getConsentStatus(CONSENT_TYPE).then((s) => setHasConsent(s.has_consent))
   }, [])
 
   const onSuccess = useCallback(
@@ -61,15 +66,35 @@ function PlaidLinkButton() {
     onSuccess,
   })
 
+  const handleClick = () => {
+    if (hasConsent) {
+      open()
+    } else {
+      setShowConsent(true)
+    }
+  }
+
   return (
-    <button
-      onClick={() => open()}
-      disabled={!ready}
-      className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
-    >
-      <Plus className="w-4 h-4" />
-      Link Bank Account
-    </button>
+    <>
+      <button
+        onClick={handleClick}
+        disabled={!ready}
+        className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
+      >
+        <Plus className="w-4 h-4" />
+        Link Bank Account
+      </button>
+      {showConsent && (
+        <ConsentModal
+          onConsent={() => {
+            setShowConsent(false)
+            setHasConsent(true)
+            open()
+          }}
+          onCancel={() => setShowConsent(false)}
+        />
+      )}
+    </>
   )
 }
 

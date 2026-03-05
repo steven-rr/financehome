@@ -6,6 +6,7 @@ from app.models.insight import InsightCache
 from app.models.budget import Budget
 from app.models.notification_preference import NotificationPreference
 from app.models.audit_log import AuditLog
+from app.models.consent_record import ConsentRecord
 from app.database import Base
 
-__all__ = ["User", "PlaidLink", "Account", "Transaction", "InsightCache", "Budget", "NotificationPreference", "AuditLog", "Base"]
+__all__ = ["User", "PlaidLink", "Account", "Transaction", "InsightCache", "Budget", "NotificationPreference", "AuditLog", "ConsentRecord", "Base"]

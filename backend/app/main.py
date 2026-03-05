@@ -8,7 +8,7 @@ from starlette.responses import Response
 
 from app.config import settings
 from app.rate_limit import limiter
-from app.routers import accounts, auth, budgets, categorize, csv_import, export, insights, mfa, notifications, plaid, recurring, transactions
+from app.routers import accounts, auth, budgets, categorize, consent, csv_import, export, insights, mfa, notifications, plaid, recurring, transactions
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -50,6 +50,7 @@ app.include_router(categorize.router, prefix="/api/categorize", tags=["categoriz
 app.include_router(recurring.router, prefix="/api/recurring", tags=["recurring"])
 app.include_router(budgets.router, prefix="/api/budgets", tags=["budgets"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
+app.include_router(consent.router, prefix="/api/consent", tags=["consent"])
 
 
 @app.get("/api/health")
