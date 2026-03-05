@@ -18,8 +18,12 @@ export default function GitHubCallback() {
 
     githubLogin(code)
       .then(() => navigate('/', { replace: true }))
-      .catch(() => {
-        setError('Failed to sign in with GitHub. Please try again.')
+      .catch((err) => {
+        if (err instanceof Error && err.message === 'MFA_REQUIRED') {
+          navigate('/login', { replace: true })
+        } else {
+          setError('Failed to sign in with GitHub. Please try again.')
+        }
       })
   }, [searchParams, githubLogin, navigate])
 

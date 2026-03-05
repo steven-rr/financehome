@@ -2,11 +2,19 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import type { ReactNode } from 'react'
 import { authApi } from '../api/auth'
 
+interface MfaPending {
+  mfaToken: string
+  email: string
+}
+
 interface AuthContextType {
   token: string | null
   isDemo: boolean
   isAdmin: boolean
-  login: (email: string, password: string) => Promise<void>
+  mfaPending: MfaPending | null
+  login: (email: string, password: string) => Promise<boolean>
+  completeMfa: (code: string) => Promise<void>
+  clearMfaPending: () => void
   register: (email: string, password: string) => Promise<void>
   demoLogin: () => Promise<void>
   githubLogin: (code: string) => Promise<void>
@@ -23,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.getItem('is_demo') === 'true',
   )
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
+  const [mfaPending, setMfaPending] = useState<MfaPending | null>(null)
 
   useEffect(() => {
     if (token) {
@@ -34,12 +43,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token])
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     const data = await authApi.login(email, password)
-    setToken(data.access_token)
-    localStorage.setItem('refresh_token', data.refresh_token)
+    if (data.mfa_required && data.mfa_token) {
+      setMfaPending({ mfaToken: data.mfa_token, email })
+      return true // MFA required
+    }
+    setToken(data.access_token!)
+    localStorage.setItem('refresh_token', data.refresh_token!)
     localStorage.setItem('is_demo', 'false')
     setIsDemo(false)
+    return false // No MFA
+  }, [])
+
+  const completeMfa = useCallback(async (code: string) => {
+    if (!mfaPending) throw new Error('No MFA session pending')
+    const data = await authApi.mfaVerify(mfaPending.mfaToken, code)
+    setToken(data.access_token!)
+    localStorage.setItem('refresh_token', data.refresh_token!)
+    localStorage.setItem('is_demo', 'false')
+    setIsDemo(false)
+    setMfaPending(null)
+  }, [mfaPending])
+
+  const clearMfaPending = useCallback(() => {
+    setMfaPending(null)
   }, [])
 
   const register = useCallback(async (email: string, password: string) => {
@@ -60,8 +88,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const githubLogin = useCallback(async (code: string) => {
     const data = await authApi.githubCallback(code)
-    setToken(data.access_token)
-    localStorage.setItem('refresh_token', data.refresh_token)
+    if (data.mfa_required && data.mfa_token) {
+      setMfaPending({ mfaToken: data.mfa_token, email: '' })
+      throw new Error('MFA_REQUIRED')
+    }
+    setToken(data.access_token!)
+    localStorage.setItem('refresh_token', data.refresh_token!)
     localStorage.setItem('is_demo', 'false')
     setIsDemo(false)
   }, [])
@@ -70,13 +102,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null)
     setIsDemo(false)
     setIsAdmin(false)
+    setMfaPending(null)
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('is_demo')
   }, [])
 
   return (
-    <AuthContext.Provider value={{ token, isDemo, isAdmin, login, register, demoLogin, githubLogin, logout }}>
+    <AuthContext.Provider value={{ token, isDemo, isAdmin, mfaPending, login, completeMfa, clearMfaPending, register, demoLogin, githubLogin, logout }}>
       {children}
     </AuthContext.Provider>
   )
