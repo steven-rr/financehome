@@ -87,6 +87,14 @@ function MFAVerifyForm({
   )
 }
 
+const PASSWORD_RULES = [
+  { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
+  { label: 'One uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
+  { label: 'One lowercase letter', test: (p: string) => /[a-z]/.test(p) },
+  { label: 'One number', test: (p: string) => /\d/.test(p) },
+  { label: 'One special character', test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+]
+
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -98,9 +106,15 @@ export default function Login() {
   const { login, register, demoLogin, mfaPending, completeMfa, clearMfaPending } = useAuth()
   const navigate = useNavigate()
 
+  const passwordValid = PASSWORD_RULES.every((r) => r.test(password))
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    if (isRegister && !passwordValid) {
+      setError('Please meet all password requirements')
+      return
+    }
     setLoading(true)
     try {
       if (isRegister) {
@@ -219,10 +233,20 @@ export default function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    minLength={6}
+                    minLength={isRegister ? 8 : 1}
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                     placeholder="••••••••"
                   />
+                  {isRegister && password.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {PASSWORD_RULES.map((rule) => (
+                        <li key={rule.label} className={`text-xs flex items-center gap-1.5 ${rule.test(password) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                          <span>{rule.test(password) ? '\u2713' : '\u2022'}</span>
+                          {rule.label}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 <button
