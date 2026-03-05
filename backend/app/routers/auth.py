@@ -12,6 +12,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.user import User
 from app.rate_limit import limiter
+from app.services.audit import log_event
 from app.utils.security import (
     create_access_token,
     create_mfa_pending_token,
@@ -100,6 +101,8 @@ async def register(request: Request, body: RegisterRequest, db: AsyncSession = D
     await db.commit()
     await db.refresh(user)
 
+    await log_event(db, "REGISTER", request, user_id=user.id, details={"email": body.email})
+
     access_token = create_access_token({"sub": str(user.id)})
     refresh_token = create_refresh_token({"sub": str(user.id)})
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
@@ -111,12 +114,15 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
     if not user or not user.password_hash or not verify_password(body.password, user.password_hash):
+        await log_event(db, "LOGIN_FAILED", request, user_id=user.id if user else None, details={"email": body.email})
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
     if user.mfa_enabled:
         mfa_token = create_mfa_pending_token({"sub": str(user.id)})
+        await log_event(db, "LOGIN_MFA_PENDING", request, user_id=user.id)
         return {"mfa_required": True, "mfa_token": mfa_token, "token_type": "bearer"}
 
+    await log_event(db, "LOGIN_SUCCESS", request, user_id=user.id)
     access_token = create_access_token({"sub": str(user.id)})
     refresh_token = create_refresh_token({"sub": str(user.id)})
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "mfa_required": False}
@@ -252,6 +258,8 @@ async def github_callback(request: Request, body: GitHubCallbackRequest, db: Asy
         db.add(user)
         await db.commit()
         await db.refresh(user)
+
+    await log_event(db, "GITHUB_LOGIN", request, user_id=user.id, details={"email": gh_email})
 
     if user.mfa_enabled:
         mfa_token = create_mfa_pending_token({"sub": str(user.id)})

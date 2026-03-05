@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models.user import User
 from app.rate_limit import limiter
 from app.routers.auth import get_current_user
+from app.services.audit import log_event
 from app.services.plaid_service import PlaidService
 
 router = APIRouter()
@@ -33,6 +34,7 @@ async def create_link_token(
 ):
     plaid_service = PlaidService()
     link_token = await plaid_service.create_link_token(str(current_user.id))
+    await log_event(db, "PLAID_LINK_CREATED", request, user_id=current_user.id)
     return LinkTokenResponse(link_token=link_token)
 
 
@@ -50,6 +52,10 @@ async def exchange_public_token(
         user_id=current_user.id,
         db=db,
     )
+    await log_event(db, "PLAID_ACCOUNT_LINKED", request, user_id=current_user.id, details={
+        "institution": result["institution_name"],
+        "accounts_linked": result["accounts_linked"],
+    })
     return ExchangeTokenResponse(
         institution_name=result["institution_name"],
         accounts_linked=result["accounts_linked"],

@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.user import User
 from app.rate_limit import limiter
+from app.services.audit import log_event
 from app.routers.auth import get_current_user
 from app.utils.encryption import decrypt_token, encrypt_token
 from app.utils.security import (
@@ -138,6 +139,8 @@ async def mfa_setup(
     current_user.mfa_secret_encrypted = encrypt_token(secret)
     await db.commit()
 
+    await log_event(db, "MFA_SETUP", request, user_id=current_user.id)
+
     qr_data_uri = _generate_qr_data_uri(provisioning_uri)
 
     return MFASetupResponse(secret=secret, qr_code_data_uri=qr_data_uri)
@@ -171,6 +174,8 @@ async def mfa_confirm(
     _store_recovery_codes(current_user, recovery_codes)
     await db.commit()
 
+    await log_event(db, "MFA_ENABLED", request, user_id=current_user.id)
+
     return MFAConfirmResponse(recovery_codes=recovery_codes)
 
 
@@ -197,6 +202,7 @@ async def mfa_verify(
     totp = pyotp.TOTP(secret)
 
     if totp.verify(body.code, valid_window=1):
+        await log_event(db, "MFA_VERIFY_SUCCESS", request, user_id=user.id)
         access_token = create_access_token({"sub": str(user.id)})
         refresh_token = create_refresh_token({"sub": str(user.id)})
         return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "mfa_required": False}
@@ -205,10 +211,12 @@ async def mfa_verify(
     if "-" in body.code:
         if _consume_recovery_code(user, body.code):
             await db.commit()
+            await log_event(db, "MFA_RECOVERY_USED", request, user_id=user.id)
             access_token = create_access_token({"sub": str(user.id)})
             refresh_token = create_refresh_token({"sub": str(user.id)})
             return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "mfa_required": False}
 
+    await log_event(db, "MFA_VERIFY_FAILED", request, user_id=user.id)
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid code")
 
 
@@ -235,6 +243,8 @@ async def mfa_disable(
     current_user.mfa_enabled_at = None
     await db.commit()
 
+    await log_event(db, "MFA_DISABLED", request, user_id=current_user.id)
+
     return {"message": "MFA disabled"}
 
 
@@ -258,5 +268,7 @@ async def regenerate_recovery_codes(
     recovery_codes = _generate_recovery_codes()
     _store_recovery_codes(current_user, recovery_codes)
     await db.commit()
+
+    await log_event(db, "MFA_CODES_REGENERATED", request, user_id=current_user.id)
 
     return MFAConfirmResponse(recovery_codes=recovery_codes)
