@@ -18,6 +18,7 @@ interface AuthContextType {
   register: (email: string, password: string) => Promise<void>
   demoLogin: () => Promise<void>
   githubLogin: (code: string) => Promise<void>
+  deleteAccount: (password: string) => Promise<void>
   logout: () => void
 }
 
@@ -98,6 +99,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsDemo(false)
   }, [])
 
+  const deleteAccount = useCallback(async (password: string) => {
+    await authApi.deleteAccount(password)
+    setToken(null)
+    setIsDemo(false)
+    setIsAdmin(false)
+    setMfaPending(null)
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('is_demo')
+  }, [])
+
   const logout = useCallback(() => {
     setToken(null)
     setIsDemo(false)
@@ -109,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ token, isDemo, isAdmin, mfaPending, login, completeMfa, clearMfaPending, register, demoLogin, githubLogin, logout }}>
+    <AuthContext.Provider value={{ token, isDemo, isAdmin, mfaPending, login, completeMfa, clearMfaPending, register, demoLogin, githubLogin, deleteAccount, logout }}>
       {children}
     </AuthContext.Provider>
   )

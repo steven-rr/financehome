@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, CheckCircle, Copy, KeyRound, Mail, Send, Shield, ShieldCheck, ShieldOff } from 'lucide-react'
+import { AlertTriangle, Bell, CheckCircle, Copy, KeyRound, Mail, Send, Shield, ShieldCheck, ShieldOff, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { authApi } from '../api/auth'
 import type { MFAConfirmResponse, MFASetupResponse } from '../api/auth'
 import { notificationsApi, type NotificationPreferences } from '../api/notifications'
@@ -332,6 +333,102 @@ function MFASection() {
 }
 
 
+function DeleteAccountSection() {
+  const { deleteAccount } = useAuth()
+  const navigate = useNavigate()
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setDeleting(true)
+    try {
+      await deleteAccount(password)
+      navigate('/login')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to delete account'
+      setError(message)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-red-200 dark:border-red-900 p-6 mb-6">
+      <h2 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-4 flex items-center gap-2">
+        <Trash2 className="w-5 h-5" />
+        Delete Account
+      </h2>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
+
+      {!showConfirm ? (
+        <div>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+            Permanently delete your account and all associated data including linked bank accounts, transactions, budgets, and settings. This action cannot be undone.
+          </p>
+          <button
+            onClick={() => setShowConfirm(true)}
+            className="flex items-center gap-2 px-4 py-2 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete my account
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleDelete}>
+          <div className="flex items-start gap-3 mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+            <div className="text-sm text-red-700 dark:text-red-400">
+              <p className="font-medium mb-1">This will permanently delete:</p>
+              <ul className="list-disc list-inside space-y-0.5 text-xs">
+                <li>All linked bank accounts and Plaid connections</li>
+                <li>All transactions and categorization data</li>
+                <li>Budgets, insights, and notification preferences</li>
+                <li>Your account and login credentials</li>
+              </ul>
+            </div>
+          </div>
+
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">Enter your password to confirm:</p>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Your password"
+              required
+              className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+            <button
+              type="submit"
+              disabled={deleting || !password}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+            >
+              {deleting ? 'Deleting...' : 'Confirm Delete'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowConfirm(false); setPassword(''); setError('') }}
+              className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
+
+
 export default function Settings() {
   const { isDemo } = useAuth()
   const queryClient = useQueryClient()
@@ -510,6 +607,9 @@ export default function Settings() {
           </p>
         )}
       </div>
+
+      {/* Delete Account (hidden for demo users) */}
+      {!isDemo && <DeleteAccountSection />}
     </div>
   )
 }

@@ -88,4 +88,8 @@ export const authApi = {
     const { data } = await client.post('/auth/mfa/recovery-codes/regenerate', { code })
     return data
   },
+
+  deleteAccount: async (password: string): Promise<void> => {
+    await client.delete('/auth/account', { data: { password } })
+  },
 }

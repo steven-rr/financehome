@@ -163,6 +163,47 @@ async def get_me(current_user: User = Depends(get_current_user)):
     return UserResponse(id=current_user.id, email=current_user.email, is_admin=is_admin)
 
 
+class DeleteAccountRequest(BaseModel):
+    password: str
+
+
+@router.delete("/account")
+@limiter.limit("3/minute")
+async def delete_account(
+    request: Request,
+    body: DeleteAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not current_user.password_hash or not verify_password(body.password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid password")
+
+    # Revoke Plaid access tokens before deletion
+    from app.models.plaid_link import PlaidLink
+    from app.services.plaid_service import PlaidService
+    from app.utils.encryption import decrypt_token
+
+    result = await db.execute(select(PlaidLink).where(PlaidLink.user_id == current_user.id))
+    plaid_links = result.scalars().all()
+
+    if plaid_links:
+        plaid_service = PlaidService()
+        for link in plaid_links:
+            try:
+                token = decrypt_token(link.access_token)
+                await plaid_service.remove_item(token)
+            except Exception:
+                pass  # Best-effort — proceed with deletion regardless
+
+    # Log before deletion (user_id becomes NULL after cascade)
+    await log_event(db, "ACCOUNT_DELETED", request, user_id=current_user.id, details={"email": current_user.email})
+
+    await db.delete(current_user)
+    await db.commit()
+
+    return {"message": "Account deleted"}
+
+
 # ── GitHub OAuth ─────────────────────────────────────────────────
 
 

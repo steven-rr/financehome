@@ -4,6 +4,7 @@ import plaid
 from plaid.api import plaid_api
 from plaid.model.country_code import CountryCode
 from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
+from plaid.model.item_remove_request import ItemRemoveRequest
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
 from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
 from plaid.model.products import Products
@@ -109,3 +110,11 @@ class PlaidService:
             "institution_name": institution_name,
             "accounts_linked": accounts_linked,
         }
+
+    async def remove_item(self, access_token: str) -> bool:
+        """Revoke access to a Plaid item via /item/remove."""
+        try:
+            self.client.item_remove(ItemRemoveRequest(access_token=access_token))
+            return True
+        except Exception:
+            return False
