@@ -23,7 +23,6 @@ const CATEGORIES = [
   'Travel',
   'Gifts & Donations',
   'Fees & Charges',
-  'Income',
   'Other',
 ]
 
