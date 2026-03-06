@@ -20,6 +20,13 @@ from app.services.analytics_service import (
 
 logger = logging.getLogger(__name__)
 
+# P2P services where merchant_name is generic (e.g. "Zelle" for all transactions).
+# Excluded from merchant rule learning to prevent one manual categorization from
+# blanket-applying to all future P2P transactions.
+P2P_MERCHANT_NAMES = {
+    "zelle", "venmo", "cash app", "cashapp", "paypal",
+}
+
 
 async def _get_merchant_rules(user_id: uuid.UUID, db: AsyncSession) -> dict[str, str]:
     """For each merchant, find the most recent user_category set by this user."""
@@ -190,7 +197,7 @@ class TransactionCategorizer:
         still_need_ai = []
         merchant_tagged = 0
         for txn in need_ai:
-            if txn.merchant_name and txn.merchant_name in merchant_rules:
+            if txn.merchant_name and txn.merchant_name in merchant_rules and txn.merchant_name.lower() not in P2P_MERCHANT_NAMES:
                 txn.ai_category = merchant_rules[txn.merchant_name]
                 merchant_tagged += 1
             else:
@@ -343,8 +350,8 @@ class TransactionCategorizer:
                     updated += 1
                 continue
 
-            # Merchant rules
-            if txn.merchant_name and txn.merchant_name in merchant_rules:
+            # Merchant rules (skip generic P2P merchant names)
+            if txn.merchant_name and txn.merchant_name in merchant_rules and txn.merchant_name.lower() not in P2P_MERCHANT_NAMES:
                 if _set_better_category(txn, merchant_rules[txn.merchant_name]):
                     updated += 1
                 continue
