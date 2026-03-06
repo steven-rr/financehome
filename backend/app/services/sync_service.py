@@ -163,11 +163,12 @@ class SyncService:
             )
 
         # Budget exceeded alert
-        if prefs.alert_budget_exceeded and txn.category:
+        effective_cat = txn.user_category or txn.category or txn.ai_category
+        if prefs.alert_budget_exceeded and effective_cat:
             budget_result = await db.execute(
                 select(Budget).where(
                     Budget.user_id == user_id,
-                    Budget.category == txn.category,
+                    Budget.category == effective_cat,
                 )
             )
             budget = budget_result.scalar_one_or_none()
@@ -182,14 +183,14 @@ class SyncService:
                         Account.user_id == user_id,
                         Transaction.amount > 0,
                         Transaction.date >= month_start,
-                        cat_expr == txn.category,
+                        cat_expr == effective_cat,
                     )
                 )
                 month_total = float(spend_result.scalar())
                 if month_total > budget.monthly_limit:
                     await email_service.send_budget_alert(
                         to=user.email,
-                        category=txn.category,
+                        category=effective_cat,
                         limit=budget.monthly_limit,
                         actual=month_total,
                     )
