@@ -359,6 +359,8 @@ def _parse_generic(reader: csv.DictReader) -> list[dict]:
     return rows
 
 
+
+
 async def _get_or_create_manual_account(
     db: AsyncSession,
     user: User,
@@ -410,6 +412,8 @@ async def import_transactions_csv(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    from app.services.duplicate_detector import detect_duplicates
+
     if not file.filename or not _is_csv_filename(file.filename):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File must be a .csv")
 
@@ -421,23 +425,13 @@ async def import_transactions_csv(
 
     account = await _get_or_create_manual_account(db, current_user, account_name)
 
-    # Get existing transaction IDs to avoid duplicates
-    existing = await db.execute(
-        select(Transaction.plaid_transaction_id).where(
-            Transaction.account_id == account.id,
-        )
-    )
-    existing_ids = {r[0] for r in existing.all()}
+    # Three-pass duplicate detection
+    result = await detect_duplicates(db, current_user.id, account.id, rows)
 
+    # Auto-import clean rows
     imported = 0
-    skipped = 0
-    for row in rows:
-        # Create a deterministic ID from date + amount + description to detect duplicates
+    for row in result["clean"]:
         txn_id = f"csv-{row['date']}-{row['amount']}-{row['description'][:50]}"
-        if txn_id in existing_ids:
-            skipped += 1
-            continue
-
         db.add(Transaction(
             account_id=account.id,
             plaid_transaction_id=txn_id,
@@ -448,17 +442,36 @@ async def import_transactions_csv(
             category=normalize_category(row["category"]) if row.get("category") else None,
             is_pending=False,
         ))
-        existing_ids.add(txn_id)
         imported += 1
 
     await db.commit()
 
-    # Auto-categorize newly imported transactions
     if imported > 0:
         categorizer = TransactionCategorizer()
         await categorizer.categorize_uncategorized(current_user.id, db)
 
-    return {"imported": imported, "skipped": skipped, "total_in_file": len(rows)}
+    # Serialize suspected duplicates (convert date objects to strings for JSON)
+    suspected = []
+    for dup in result["suspected_duplicates"]:
+        suspected.append({
+            "csv_row": {
+                "date": str(dup["csv_row"]["date"]),
+                "amount": dup["csv_row"]["amount"],
+                "description": dup["csv_row"]["description"],
+                "merchant_name": dup["csv_row"].get("merchant_name"),
+                "category": dup["csv_row"].get("category"),
+            },
+            "existing_transaction": dup["existing_transaction"],
+            "confidence": dup["confidence"],
+        })
+
+    return {
+        "imported": imported,
+        "skipped": len(result["skipped"]),
+        "suspected_duplicates": suspected,
+        "account_id": str(account.id),
+        "total_in_file": len(rows),
+    }
 
 
 @router.post("/transactions/bulk")
@@ -477,6 +490,8 @@ async def import_transactions_bulk(
       { "file.csv": { "new_name": "My Account" } }    — create new manual account
     Files not in the mapping derive account name from filename (backwards compatible).
     """
+    from app.services.duplicate_detector import detect_duplicates
+
     if not files:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files provided")
 
@@ -488,6 +503,7 @@ async def import_transactions_bulk(
     total_imported = 0
     total_skipped = 0
     total_in_files = 0
+    all_suspected = []
     file_results = []
 
     for file in files:
@@ -509,7 +525,6 @@ async def import_transactions_bulk(
         # Resolve target account from mapping or filename
         mapping = mappings.get(file.filename, {})
         if mapping.get("account_id"):
-            # Use existing account — verify ownership
             result = await db.execute(
                 select(Account).where(
                     Account.id == mapping["account_id"],
@@ -525,21 +540,13 @@ async def import_transactions_bulk(
             account_name = mapping.get("new_name") or file.filename.rsplit(".", 1)[0]
             account = await _get_or_create_manual_account(db, current_user, account_name)
 
-        existing = await db.execute(
-            select(Transaction.plaid_transaction_id).where(
-                Transaction.account_id == account.id,
-            )
-        )
-        existing_ids = {r[0] for r in existing.all()}
+        # Three-pass duplicate detection
+        detection = await detect_duplicates(db, current_user.id, account.id, rows)
 
+        # Auto-import clean rows
         imported = 0
-        skipped = 0
-        for row in rows:
+        for row in detection["clean"]:
             txn_id = f"csv-{row['date']}-{row['amount']}-{row['description'][:50]}"
-            if txn_id in existing_ids:
-                skipped += 1
-                continue
-
             db.add(Transaction(
                 account_id=account.id,
                 plaid_transaction_id=txn_id,
@@ -550,9 +557,25 @@ async def import_transactions_bulk(
                 category=normalize_category(row["category"]) if row.get("category") else None,
                 is_pending=False,
             ))
-            existing_ids.add(txn_id)
             imported += 1
 
+        # Collect suspected duplicates with account context
+        for dup in detection["suspected_duplicates"]:
+            all_suspected.append({
+                "csv_row": {
+                    "date": str(dup["csv_row"]["date"]),
+                    "amount": dup["csv_row"]["amount"],
+                    "description": dup["csv_row"]["description"],
+                    "merchant_name": dup["csv_row"].get("merchant_name"),
+                    "category": dup["csv_row"].get("category"),
+                },
+                "existing_transaction": dup["existing_transaction"],
+                "confidence": dup["confidence"],
+                "target_account_id": str(account.id),
+                "target_account_name": account_name,
+            })
+
+        skipped = len(detection["skipped"])
         total_imported += imported
         total_skipped += skipped
         total_in_files += len(rows)
@@ -561,12 +584,12 @@ async def import_transactions_bulk(
             "account": account_name,
             "imported": imported,
             "skipped": skipped,
+            "suspected_duplicates": len(detection["suspected_duplicates"]),
             "total_in_file": len(rows),
         })
 
     await db.commit()
 
-    # Auto-categorize newly imported transactions
     if total_imported > 0:
         categorizer = TransactionCategorizer()
         await categorizer.categorize_uncategorized(current_user.id, db)
@@ -574,6 +597,86 @@ async def import_transactions_bulk(
     return {
         "imported": total_imported,
         "skipped": total_skipped,
+        "suspected_duplicates": all_suspected,
         "total_in_files": total_in_files,
         "files": file_results,
     }
+
+
+@router.post("/transactions/resolve-duplicates")
+@limiter.limit("10/minute")
+async def resolve_duplicates(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Resolve suspected duplicates from a CSV import.
+
+    The user reviews each suspected duplicate and decides to import or skip.
+    Request body: {
+        "decisions": [
+            {
+                "csv_row": { "date": "...", "amount": ..., "description": "..." },
+                "account_id": "uuid",
+                "action": "import" | "skip"
+            }
+        ]
+    }
+    """
+    body = await request.json()
+    decisions = body.get("decisions", [])
+
+    imported = 0
+    skipped = 0
+
+    for decision in decisions:
+        if decision["action"] == "skip":
+            skipped += 1
+            continue
+
+        csv_row = decision["csv_row"]
+        account_id = decision["account_id"]
+
+        # Verify account ownership
+        acct_result = await db.execute(
+            select(Account).where(
+                Account.id == account_id,
+                Account.user_id == current_user.id,
+            )
+        )
+        account = acct_result.scalar_one_or_none()
+        if not account:
+            continue
+
+        txn_date = datetime.strptime(csv_row["date"], "%Y-%m-%d").date()
+        txn_id = f"csv-{csv_row['date']}-{csv_row['amount']}-{csv_row['description'][:50]}"
+
+        # Check it wasn't already imported (race condition / double-submit)
+        existing = await db.execute(
+            select(Transaction.id).where(
+                Transaction.plaid_transaction_id == txn_id,
+            )
+        )
+        if existing.scalar_one_or_none():
+            skipped += 1
+            continue
+
+        db.add(Transaction(
+            account_id=account.id,
+            plaid_transaction_id=txn_id,
+            date=txn_date,
+            amount=csv_row["amount"],
+            merchant_name=csv_row.get("merchant_name"),
+            description=csv_row["description"],
+            category=normalize_category(csv_row["category"]) if csv_row.get("category") else None,
+            is_pending=False,
+        ))
+        imported += 1
+
+    await db.commit()
+
+    if imported > 0:
+        categorizer = TransactionCategorizer()
+        await categorizer.categorize_uncategorized(current_user.id, db)
+
+    return {"imported": imported, "skipped": skipped}

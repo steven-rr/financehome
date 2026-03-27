@@ -1,25 +1,62 @@
 import client from './client'
 
-interface ImportResult {
+export interface SuspectedDuplicate {
+  csv_row: {
+    date: string
+    amount: number
+    description: string
+    merchant_name: string | null
+    category: string | null
+  }
+  existing_transaction: {
+    id: string
+    date: string
+    amount: number
+    description: string
+    merchant_name: string | null
+    account_name: string
+  }
+  confidence: 'high' | 'low'
+  target_account_id?: string
+  target_account_name?: string
+}
+
+export interface ImportResult {
   imported: number
   skipped: number
+  suspected_duplicates: SuspectedDuplicate[]
+  account_id: string
   total_in_file: number
 }
 
-interface BulkImportFileResult {
+export interface BulkImportFileResult {
   file: string
   account?: string
   imported?: number
   skipped?: number
+  suspected_duplicates?: number
   total_in_file?: number
   error?: string
 }
 
-interface BulkImportResult {
+export interface BulkImportResult {
   imported: number
   skipped: number
+  suspected_duplicates: SuspectedDuplicate[]
   total_in_files: number
   files: BulkImportFileResult[]
+}
+
+export interface DuplicateDecision {
+  csv_row: {
+    date: string
+    amount: number
+    description: string
+    merchant_name?: string | null
+    category?: string | null
+  }
+  account_id: string
+  action: 'import' | 'skip'
 }
 
 export const csvImportApi = {
@@ -34,6 +71,11 @@ export const csvImportApi = {
 
   async importBulk(formData: FormData): Promise<BulkImportResult> {
     const { data } = await client.post('/import/transactions/bulk', formData)
+    return data
+  },
+
+  async resolveDuplicates(decisions: DuplicateDecision[]): Promise<{ imported: number; skipped: number }> {
+    const { data } = await client.post('/import/transactions/resolve-duplicates', { decisions })
     return data
   },
 }

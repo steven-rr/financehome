@@ -4,10 +4,11 @@ import { ChevronLeft, ChevronRight, Download, Search, Sparkles, Upload } from 'l
 import { useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { accountsApi } from '../api/accounts'
-import { csvImportApi } from '../api/csvImport'
+import { csvImportApi, type SuspectedDuplicate } from '../api/csvImport'
 import { exportApi } from '../api/export'
 import { transactionsApi } from '../api/transactions'
 import AIProviderToggle from '../components/AIProviderToggle'
+import DuplicateReviewModal from '../components/DuplicateReviewModal'
 import ImportModal, { type AccountMappings } from '../components/ImportModal'
 import TransactionDetailModal from '../components/TransactionDetailModal'
 import { useAuth } from '../context/AuthContext'
@@ -39,6 +40,7 @@ export default function Transactions() {
   const [isDragging, setIsDragging] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null)
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
+  const [pendingDuplicates, setPendingDuplicates] = useState<{ duplicates: SuspectedDuplicate[]; accountId: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
   const queryClient = useQueryClient()
@@ -65,19 +67,32 @@ export default function Transactions() {
       formData.append('account_mappings', JSON.stringify(mappings))
       const result = await csvImportApi.importBulk(formData)
       const errors = result.files.filter((f) => f.error)
-      let msg = `Imported ${result.imported} from ${files.length} file${files.length > 1 ? 's' : ''}, skipped ${result.skipped} duplicates`
+      let msg = `Imported ${result.imported}, skipped ${result.skipped} exact duplicates`
+      if (result.suspected_duplicates.length > 0) {
+        msg += `, ${result.suspected_duplicates.length} need review`
+      }
       if (errors.length > 0) {
         msg += ` (${errors.length} failed)`
       }
       setImportStatus(msg)
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
+
+      // Open review modal if there are suspected duplicates
+      if (result.suspected_duplicates.length > 0) {
+        setPendingDuplicates({
+          duplicates: result.suspected_duplicates,
+          accountId: result.suspected_duplicates[0].target_account_id || '',
+        })
+      } else {
+        setTimeout(() => setImportStatus(null), 8000)
+      }
     } catch (err: unknown) {
       console.error('Import failed:', err)
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       setImportStatus(detail ? `Import failed: ${detail}` : 'Import failed — check CSV format')
+      setTimeout(() => setImportStatus(null), 8000)
     }
-    setTimeout(() => setImportStatus(null), 8000)
   }
 
   const handleCategorize = async () => {
@@ -170,6 +185,23 @@ export default function Transactions() {
           accounts={accounts}
           onConfirm={handleConfirmImport}
           onCancel={() => setPendingFiles(null)}
+        />
+      )}
+      {pendingDuplicates && (
+        <DuplicateReviewModal
+          duplicates={pendingDuplicates.duplicates}
+          defaultAccountId={pendingDuplicates.accountId}
+          onComplete={(result) => {
+            setPendingDuplicates(null)
+            setImportStatus(`Resolved: imported ${result.imported}, skipped ${result.skipped}`)
+            queryClient.invalidateQueries({ queryKey: ['transactions'] })
+            queryClient.invalidateQueries({ queryKey: ['accounts'] })
+            setTimeout(() => setImportStatus(null), 8000)
+          }}
+          onCancel={() => {
+            setPendingDuplicates(null)
+            setTimeout(() => setImportStatus(null), 8000)
+          }}
         />
       )}
       {selectedTransaction && (
